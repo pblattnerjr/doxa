@@ -1,0 +1,6 @@
+*.idea
+*.log
+*.db
+*.db-journal
+*.sql
+*.yaml
