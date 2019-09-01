@@ -52,7 +52,7 @@ const doxagoTmpl = `
 # Settings for the doxago cli
 
 # Directories
-dir.repos: {{.Repos}}
+dir.repos: {{.}}
 
 # Ports
 port.http.doxa: 8080
