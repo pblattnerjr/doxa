@@ -20,39 +20,31 @@ const (
 // Initializes the config file and directories
 // for the doxago cli. If these already exist,
 // they will not be overwritten.
-func Initdoxa(userHome string) (string, error) {
-	type Dirs struct {
-		doxago string
-		Repos string
-	}
-	doxagoHome := filepath.Join(userHome,"doxago")
-	reposHome := filepath.Join(doxagoHome, "repos")
+func Initdoxa(home string) (string, error) {
+	reposHome := filepath.Join(home, "repos")
 
 	// create the various dirs
-	if err := ltfile.CreateDir(doxagoHome); err != nil {return "", err}
+	if err := ltfile.CreateDir(home); err != nil {return "", err}
 	if err := ltfile.CreateDirs(reposHome); err != nil {return "", err}
-	if err := ltfile.CreateDirs(filepath.Join(doxagoHome,DataDir)); err != nil {return "", err}
-	if err := ltfile.CreateDirs(filepath.Join(doxagoHome,DataDir, SQL)); err != nil {return "", err}
-	if err := ltfile.CreateDirs(filepath.Join(doxagoHome,HTTPDir)); err != nil {return "", err}
-	if err := ltfile.CreateDirs(filepath.Join(doxagoHome,LogDir)); err != nil {return "", err}
-	if err := ltfile.CreateDirs(filepath.Join(doxagoHome,TemplatesDir)); err != nil {return "", err}
+	if err := ltfile.CreateDirs(filepath.Join(home,DataDir)); err != nil {return "", err}
+	if err := ltfile.CreateDirs(filepath.Join(home,DataDir, SQL)); err != nil {return "", err}
+	if err := ltfile.CreateDirs(filepath.Join(home,HTTPDir)); err != nil {return "", err}
+	if err := ltfile.CreateDirs(filepath.Join(home,LogDir)); err != nil {return "", err}
+	if err := ltfile.CreateDirs(filepath.Join(home,TemplatesDir)); err != nil {return "", err}
 
-	configPath := filepath.Join(userHome, ".doxago.yaml")
+	configPath := filepath.Join(home, ".doxago.yaml")
 
 	if ! ltfile.FileExists(configPath) {
-		// set dirs struct for generating config
-		dirs := Dirs{doxagoHome, reposHome}
-
 		// generate the config file
 		t := template.Must(template.New("config").Parse(doxagoTmpl))
-		f, err := os.Create(filepath.Join(userHome,".doxago.yaml"))
+		f, err := os.Create(configPath)
 		if err != nil {
 			log.Println("create file: ", err)
 			return "", err
 		}
-		if err := t.Execute(f,dirs); err != nil {return "", err}
+		if err := t.Execute(f,reposHome); err != nil {return "", err}
 	}
-	return fmt.Sprintf("doxago home directory is: %s\nConfig file is: %s", doxagoHome, configPath), nil
+	return fmt.Sprintf("doxa home directory is: %s\nConfig file is: %s", home, configPath), nil
 }
 
 const doxagoTmpl = `
@@ -60,11 +52,24 @@ const doxagoTmpl = `
 # Settings for the doxago cli
 
 # Directories
-dir.doxago: {{.doxago}}
 dir.repos: {{.Repos}}
 
 # Ports
-port.http.doxago: 8080
+port.http.doxa: 8080
+
+# Generation settings
+generate.domains:
+- gr_gr_cog
+- en_us_goarch
+generate.file.pattern: eu*
+generate.output.types:
+- epub
+- html
+- pdf
+# generate.pdf.lib values are: go, latex
+# if you set it to latex, then latex and xelatex must be installed
+# as well as the oslw libraries.
+generate.pdf.lib: go
 
 # Test Github repositories to be processed
 test.github.repos:

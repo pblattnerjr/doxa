@@ -77,6 +77,6 @@ it will first be deleted.
 }
 
 func init() {
-	rootCmd.AddCommand(cloneCmd)
+	rootCmd.AddCommand(generateCmd)
 }
 

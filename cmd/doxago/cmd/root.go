@@ -23,8 +23,8 @@ import (
 	"os"
 	"path/filepath"
 )
+var DOXAHOME, LIMLHOME, DOXAPORT string
 
-var DOXAHome string
 var cfgFile = ".doxa"
 var Logger log.Logger
 var LogFile *os.File
@@ -70,11 +70,18 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	DOXAHOME = os.Getenv("DOXAHOME")
+	LIMLHOME = os.Getenv("LIMLHOME")
+	DOXAPORT = os.Getenv("DOXAPORT")
+	checkVar(DOXAHOME)
+	checkVar(DOXAPORT)
+	checkVar(LIMLHOME)
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		r, err := config.Initdoxa(DOXAHome)
+		r, err := config.Initdoxa(DOXAHOME)
 
 		if err != nil {
 			log.Fatal(err)
@@ -83,8 +90,8 @@ func initConfig() {
 			fmt.Println(r)
 		}
 		// Search config in home directory with name ".doxa" (without extension).
-		viper.AddConfigPath(DOXAHome)
-		viper.SetConfigName(".doxa")
+		viper.AddConfigPath(DOXAHOME)
+		viper.SetConfigName(".doxago")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -98,8 +105,27 @@ func initConfig() {
 			fmt.Println("Found config file, but had error", err.Error())
 		}
 	} else {
-		DOXAHome = viper.GetString("dir.doxago")
-		os.Mkdir(DOXAHome, os.ModePerm)
-		LogFilename = filepath.Join(DOXAHome, config.LogDir, "doxago.log")
+		os.Mkdir(DOXAHOME, os.ModePerm)
+		LogFilename = filepath.Join(DOXAHOME, config.LogDir, "doxago.log")
 	}
 }
+func checkVar(v string) {
+	if v == "" {
+		fmt.Println(tmpl)
+		os.Exit(1)
+	}
+}
+const tmpl = `
+doxa cannot run unless you first set 
+the environmental variables shown below.
+How you do this depends on your operating system.
+
+On a Mac, edit .bash_profile in your home directory and
+add the following:
+
+export DOXAPORT=8080
+export DOXAHOME=$HOME/doxa
+export PATH=$PATH:$DOXAHOME
+export LIMLHOME=$HOME/liml
+
+On Windows, TBD...`

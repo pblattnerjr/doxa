@@ -45,7 +45,7 @@ var initCmd = &cobra.Command{
 		}
 		if initCss {
 			fmt.Println("Initializing css")
-			css.WriteCss(filepath.Join(DOXAHome, "http","static"),"doxago.css")
+			css.WriteCss(filepath.Join(DOXAHOME, "http","static"),"doxago.css")
 		}
 		if db {
 			fmt.Println("Initializing db")

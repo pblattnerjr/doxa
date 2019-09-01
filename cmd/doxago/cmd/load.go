@@ -115,7 +115,7 @@ the valid options at each point.
 		Logger.Println(msg)
 
 		if toSql {
-			dbFilename = filepath.Join(DOXAHome, config.DataDir, config.SQL, dbFilename)
+			dbFilename = filepath.Join(DOXAHOME, config.DataDir, config.SQL, dbFilename)
 			fmt.Println(fmt.Sprintf("DB file is: %s", dbFilename))
 		}
 
