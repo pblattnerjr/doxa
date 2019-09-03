@@ -98,7 +98,7 @@ var qneoCmd = &cobra.Command{
 			input = input[:len(input)-1] // get rid of line feed
 			switch strings.ToLower(input) {
 			case ".exit":
-				fmt.Println("Good bye!")
+				Doxa()
 				os.Exit(0)
 			case ".cypher":
 				prompt = CYPHER

@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/liturgiko/doxa/pkg/lt"
 	repos2 "github.com/liturgiko/doxa/pkg/utils/repos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -62,17 +63,14 @@ it will first be deleted.
 		}
 		aresPath := viper.GetString("ares.dir")
 
-		msg := fmt.Sprintf("cloning into %s", aresPath)
+		msg := fmt.Sprintf("generating %s", aresPath)
 		fmt.Println(msg)
 		Logger.Println(msg)
 
-		if err = repos2.CloneConcurrently(aresPath, repos); err != nil {
+		if err = 	lt.Generate(DOXAHOME, template, site, domains); err != nil {
 			Logger.Println(err.Error())
 		}
-
-		elapsed := time.Since(start)
-		log.Printf("Took %s", elapsed)
-
+		Elapsed(start)
 	},
 }
 

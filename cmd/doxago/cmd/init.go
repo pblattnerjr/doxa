@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -39,6 +40,7 @@ var initCmd = &cobra.Command{
 			cmd.Help()
 			os.Exit(0)
 		}
+		start := time.Now()
 		if all {
 			fmt.Println("Initializing everything")
 			initCss, db, templates = true, true, true
@@ -53,7 +55,7 @@ var initCmd = &cobra.Command{
 		if templates {
 			fmt.Println("Initializing templates")
 		}
-		fmt.Println("Finished...")
+		Elapsed(start)
 	},
 }
 

@@ -101,6 +101,15 @@ github.repos:
 - https://github.com/AGES-Initiatives/ages-alwb-library-lash.git
 - https://github.com/AGES-Initiatives/ages-alwb-scripture.git
 
+# glory is the index of which language to use to give glory.
+# The index starts with 0 (for Greek)
+glory: 0
+glory.languages:
+- Δόξα Πατρὶ καὶ Υἱῷ καὶ Ἁγίῳ Πνεύματι, νῦν καὶ ἀεὶ καὶ εἰς τοὺς αἰῶνας τῶν αἰώνων!
+- Gloria al Padre, y al Hijo y al Espíritu Santo, perpetuamente, ahora y siempre y por los siglos de los siglos!
+- Utukufu kwa Baba na Mwana na Roho Mtakatifu, Daima, sasa na siku zote, hata milele na milele!
+- Glory to the Father and the Son and the Holy Spirit, both now and forever and unto the ages of ages!)
+
 --- # document end
 
 `

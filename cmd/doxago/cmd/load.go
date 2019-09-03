@@ -103,9 +103,9 @@ the valid options at each point.
 			repos = append(repos, flagRepo)
 		} else {
 			if useTestData {
-				repos = viper.GetStringSlice("test.github.repos")
+				repos = viper.GetStringSlice("test.github.repos.ares")
 			} else {
-				repos = viper.GetStringSlice("github.repos")
+				repos = viper.GetStringSlice("github.repos.ares")
 			}
 		}
 		aresPath := viper.GetString("ares.dir")
@@ -162,9 +162,7 @@ the valid options at each point.
 			fmt.Println("What to load is not defined.  Exiting.")
 			os.Exit(1)
 		}
-		elapsed := time.Since(start)
-		log.Printf("Took %s", elapsed)
-
+		Elapsed(start)
 	},
 }
 

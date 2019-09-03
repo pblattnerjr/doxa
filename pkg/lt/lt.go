@@ -17,12 +17,13 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
-var TemplateDir string = "/Users/mac002/doxago/templates"
-var bootstrap *template.Template
+var TemplateDir string
+var doc *template.Template
 
 type docProps struct {
 	Ldp   ldp.LDP
@@ -231,6 +232,37 @@ func GetRecord(id string) (models.Ltext, error) {
 
 var Db *sqlx.DB
 
+func Generate(home, templateName, outputPath string, domains []string) error {
+	var err error
+	TemplateDir = filepath.Join(home,"templates")
+	// open the database
+	Db, err = sqlx.Open("sqlite3", filepath.Join(home, "data", "sql", "liturgical.db"))
+	if err != nil {
+		return err
+	}
+	// set up the domains we will process
+	Domains = domains
+
+	doc, err = template.ParseGlob(filepath.Join(home, "templates", "layout", "*.gohtml"))
+	if err != nil {
+		return err
+	}
+
+	tmpl, err := template.ParseFiles(templateName)
+	if err != nil {
+		return err
+	}
+	// rows is a dummy variable.
+	var rows bytes.Buffer
+	tmpl.Execute(&rows, Command("rows"))
+	Table.Title = "Divine Liturgy"
+	f, err := os.Create(filepath.Join(outputPath,"index.html"))
+	if err != nil {
+		return err
+	}
+	doc.ExecuteTemplate(f, "doc", Table)
+	return err
+}
 func Serve(port, home string) {
 	var err error
 	// open the database
@@ -243,7 +275,7 @@ func Serve(port, home string) {
 	Domains = append(Domains, "en_us_dedes")
 	//	Domains = append(Domains, "gr_gr_cog")
 
-	bootstrap, err = template.ParseGlob(filepath.Join(home, "templates", "layout", "*.gohtml"))
+	doc, err = template.ParseGlob(filepath.Join(home, "templates", "layout", "*.gohtml"))
 	if err != nil {
 		panic(err)
 	}
@@ -264,6 +296,6 @@ func Serve(port, home string) {
 	http.ListenAndServe(":"+port, nil)
 }
 func handler(w http.ResponseWriter, r *http.Request) {
-	bootstrap.ExecuteTemplate(w, "bootstrap", Table)
+	doc.ExecuteTemplate(w, "doc", Table)
 }
 

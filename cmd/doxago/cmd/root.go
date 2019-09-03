@@ -17,13 +17,19 @@ package cmd
 import (
 	"fmt"
 	"github.com/liturgiko/doxa/pkg/config"
+	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
 	"os"
 	"path/filepath"
 )
-var DOXAHOME, LIMLHOME, DOXAPORT string
+
+var DOXAHOME string
+var LIMLHOME string
+var DOXAPORT string
+var GLORY string
+var REPOPATH string
 
 var cfgFile = ".doxa"
 var Logger log.Logger
@@ -108,6 +114,16 @@ func initConfig() {
 		os.Mkdir(DOXAHOME, os.ModePerm)
 		LogFilename = filepath.Join(DOXAHOME, config.LogDir, "doxago.log")
 	}
+	gloryLangs := viper.GetStringSlice("glory.languages")
+	gloryIndex := viper.GetInt("glory")
+	if gloryIndex > len(gloryLangs) {
+		fmt.Println("The glory index is greater than the number of languages.  The index starts with 0.")
+	} else {
+		GLORY = gloryLangs[gloryIndex]
+	}
+	REPOPATH = filepath.Join(DOXAHOME, "repos")
+	ltfile.CreateDir(REPOPATH)
+
 }
 func checkVar(v string) {
 	if v == "" {

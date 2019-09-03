@@ -26,13 +26,12 @@ import (
 )
 
 
-var cloneCmd = &cobra.Command{
-	Use:   "clone",
-	Short: "clones the github repos listed in the config file",
-	Long: `clones the github repositories listed in the config file
-that are identified by the key github.repos, to the ares.dir (directory)
-value set in the config file. Be aware that if the directory exists,
-it will first be deleted.
+var pushCmd = &cobra.Command{
+	Use:   "push",
+	Short: "pushes the github repos listed in the config file",
+	Long: `pushes the github repositories listed in the config file
+that are identified by the key github.repos.  It will first add *, 
+then commit, using the date and time as the commit message.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -81,7 +80,7 @@ it will first be deleted.
 }
 
 func init() {
-	rootCmd.AddCommand(cloneCmd)
-	cloneCmd.Flags().StringP("repo", "r", "site", "type of repositories to process, e.g. ares, site.")
+	rootCmd.AddCommand(pushCmd)
+	pushCmd.Flags().StringP("repo", "r", "site", "type of repositories to process, e.g. ares, site.")
 }
 

@@ -3,15 +3,19 @@ package repos
 import (
 	"fmt"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 // converts repository clone url into
 // a path into which to clone the repository
 func DirPath(parentDir, theUrl string) (string, error) {
 	var err error
-	Url, err := url.Parse(theUrl)
+	Url, err := url.Parse(strings.TrimSpace(theUrl))
 	result := filepath.Join(parentDir, Url.Path)
 	result = result[:len(result)-4]
 	return result, err
@@ -54,10 +58,6 @@ func CloneConcurrently(path string, urls []string) error {
 	for _, url := range urls {
 		go func(path, url string) {
 			u, err := Clone(path, url)
-			//if err != nil {
-			//	errch <- err
-			//	done <- ""
-			//}
 			done <- u
 			errch <- err
 		}(path, url)
@@ -77,8 +77,72 @@ func Clone(path string, url string) (string, error) {
 		return url, err
 	}
 	_, err = git.PlainClone(dirPath, false, &git.CloneOptions{
-		URL:  url,
-		//		  Progress: os.Stdout,
+		URL: url,
 	})
 	return dirPath, err
+}
+// adds *, then commits, using the msg
+func Commit(path, url, msg string) error {
+	dirPath, err := DirPath(path, url)
+	if err != nil {
+		return err
+	}
+	r, err := git.PlainOpen(dirPath)
+	if err != nil {
+		return err
+	}
+	w, err := r.Worktree()
+	if err != nil {
+		return err
+	}
+	//for _, file := range FilesToProcess(dirPath) {
+	//	_, err = w.Add(file)
+	//	if err != nil {
+	//		log.Printf(err.Error())
+	//	}
+	//}
+	_, err = w.Commit(msg, &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "doxasi",
+			Email: "olw@ocmc.org",
+			When:  time.Now(),
+		},
+	})
+	return err
+}
+func Push(path, url , username, password string) error {
+	dirPath, err := DirPath(path, url)
+	if err != nil {
+		return err
+	}
+	r, err := git.PlainOpen(dirPath)
+	if err != nil {
+		return err
+	}
+	err = r.Push(&git.PushOptions{
+		Auth: &http.BasicAuth{
+			Username: username,
+			Password: password,
+		},
+	})
+	return err
+}
+// will add files of all types except for .git dir and its contents.
+// TODO: add filter from gitignore file in root dir
+func FilesToProcess(dirPath string) []string {
+	var files []string
+	filepath.Walk(dirPath,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if strings.Contains(path, "/.git/") {
+				return nil
+			}
+			if !info.IsDir() {
+				files = append(files, info.Name())
+			}
+			return nil
+		})
+	return files
 }
