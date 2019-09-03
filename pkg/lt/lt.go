@@ -14,6 +14,7 @@ import (
 	"github.com/liturgiko/doxa/pkg/css"
 	"github.com/liturgiko/doxa/pkg/ldp"
 	"github.com/liturgiko/doxa/pkg/models"
+	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"html/template"
 	"log"
 	"net/http"
@@ -232,23 +233,48 @@ func GetRecord(id string) (models.Ltext, error) {
 
 var Db *sqlx.DB
 
-func Generate(home, templateName, outputPath string, domains []string) error {
+// For each domain, generate files of specified types whose names match one of the patterns
+func Generate(templatesDir string,
+	dbPath string, // path to the sqlite database
+	siteDir string, // path to the website directory
+	patterns []string, // regular expressions to match template filenames to use for generation
+	extension string, // template file extension to look for, without the period
+	domains []string, // which domains to generate for
+) error { // types of files to generate
+	templates, err := ltfile.FileMatcher(templatesDir, extension, patterns)
+	if err != nil {
+		return err
+	}
+	TemplateDir = templatesDir
+	for _, template := range templates {
+		err = GenerateFromTemplate(templatesDir, dbPath, template, siteDir, domains)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+func GenerateFromTemplate(templatesDir string,
+	dbPath string,
+	docTemplatePath string,
+	outputPath string,
+	domains []string) error {
+
 	var err error
-	TemplateDir = filepath.Join(home,"templates")
 	// open the database
-	Db, err = sqlx.Open("sqlite3", filepath.Join(home, "data", "sql", "liturgical.db"))
+	Db, err = sqlx.Open("sqlite3", dbPath)
 	if err != nil {
 		return err
 	}
 	// set up the domains we will process
 	Domains = domains
 
-	doc, err = template.ParseGlob(filepath.Join(home, "templates", "layout", "*.gohtml"))
+	doc, err = template.ParseGlob(filepath.Join(templatesDir, "layout", "*.gohtml"))
 	if err != nil {
 		return err
 	}
 
-	tmpl, err := template.ParseFiles(templateName)
+	tmpl, err := template.ParseFiles(docTemplatePath)
 	if err != nil {
 		return err
 	}
@@ -256,7 +282,7 @@ func Generate(home, templateName, outputPath string, domains []string) error {
 	var rows bytes.Buffer
 	tmpl.Execute(&rows, Command("rows"))
 	Table.Title = "Divine Liturgy"
-	f, err := os.Create(filepath.Join(outputPath,"index.html"))
+	f, err := os.Create(filepath.Join(outputPath, "index.html"))
 	if err != nil {
 		return err
 	}
@@ -298,4 +324,3 @@ func Serve(port, home string) {
 func handler(w http.ResponseWriter, r *http.Request) {
 	doc.ExecuteTemplate(w, "doc", Table)
 }
-

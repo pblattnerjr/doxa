@@ -31,6 +31,8 @@ var DOXAPORT string
 var GLORY string
 var REPOPATH string
 
+var Paths *config.Paths
+
 var cfgFile = ".doxa"
 var Logger log.Logger
 var LogFile *os.File
@@ -123,7 +125,7 @@ func initConfig() {
 	}
 	REPOPATH = filepath.Join(DOXAHOME, "repos")
 	ltfile.CreateDir(REPOPATH)
-
+	Paths = config.NewPaths(DOXAHOME, viper.GetString("github.repos.site"))
 }
 func checkVar(v string) {
 	if v == "" {
@@ -142,6 +144,5 @@ add the following:
 export DOXAPORT=8080
 export DOXAHOME=$HOME/doxa
 export PATH=$PATH:$DOXAHOME
-export LIMLHOME=$HOME/liml
 
 On Windows, TBD...`

@@ -7,6 +7,8 @@ import (
 	"html/template"
 	"log"
 	"os"
+	"path/filepath"
+	"regexp"
 )
 
 // FileExists returns true if final segment of the path exists and is not a directory.
@@ -73,5 +75,37 @@ func HTMLTemplateToFile(name, html, filename string, data interface{}) error {
 	f.Close()
 	return nil
 }
+// Returns all files recursively in the dir that have the specified file extension
+// without a dot, and match any one of the supplied expressions.
+// The expressions are regular expressions that will match the name of a file, but
+// without the extension.  The extension will be automatically added to each expression.
+func FileMatcher(dir, extension string, expressions []string) ([]string, error) {
+	var result []string
+	extensionPattern := "\\." + extension
+	// precompile the expressions
+	patterns := make([]*regexp.Regexp, len(expressions))
+	for i, e := range expressions {
+		p, err := regexp.Compile(e + extensionPattern)
+		if err != nil {return result, err}
+		patterns[i] = p
+	}
+	// now walk the files and apply the regular expressions
+	err := filepath.Walk(dir,
+		func(path string, info os.FileInfo, err error) error {
+			for _, p := range patterns {
+				if p.MatchString(info.Name()) {
+					result = append(result, path)
+				}
+			}
+			return nil
+		})
+	return result, err
+}
 
+func getWalkFunc(patterns []*regexp.Regexp) filepath.WalkFunc {
+	return func(path string, fileInfo os.FileInfo, err error) error {
+		// ...do something with service...
+		return nil
+	}
+}
 

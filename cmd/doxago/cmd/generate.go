@@ -17,7 +17,6 @@ package cmd
 import (
 	"fmt"
 	"github.com/liturgiko/doxa/pkg/lt"
-	repos2 "github.com/liturgiko/doxa/pkg/utils/repos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
@@ -27,13 +26,9 @@ import (
 
 
 var generateCmd = &cobra.Command{
-	Use:   "clone",
-	Short: "clones the github repos listed in the config file",
-	Long: `clones the github repositories listed in the config file
-that are identified by the key github.repos, to the ares.dir (directory)
-value set in the config file. Be aware that if the directory exists,
-it will first be deleted.
-`,
+	Use:   "generate",
+	Short: "generates files from templates using settings from the config file",
+	Long: `generates files from templates using settings from the config file`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		start := time.Now()
@@ -49,25 +44,21 @@ it will first be deleted.
 		Logger.SetFlags(log.Ldate + log.Ltime + log.Lshortfile)
 
 		// get the flags
-		useTestData, _ := cmd.Flags().GetBool("test")
-		var repos []string
-		flagRepo, _ := cmd.Flags().GetString("cloneUrl")
-		if flagRepo != "" {
-			repos = append(repos, flagRepo)
-		} else {
-			if useTestData {
-				repos = viper.GetStringSlice("test.github.repos")
-			} else {
-				repos = viper.GetStringSlice("github.repos")
-			}
-		}
-		aresPath := viper.GetString("ares.dir")
+		domains := viper.GetStringSlice("generate.domains")
+		patterns := viper.GetStringSlice("generate.template.filename.patterns")
+		extension := viper.GetString("generate.template.extension")
+//		types := viper.GetStringSlice("generate.output.types")
 
-		msg := fmt.Sprintf("generating %s", aresPath)
+		msg := fmt.Sprintf("generating...\n")
 		fmt.Println(msg)
 		Logger.Println(msg)
-
-		if err = 	lt.Generate(DOXAHOME, template, site, domains); err != nil {
+		if err = 	lt.Generate(Paths.TemplatesPath,
+			Paths.DbPath,
+			Paths.SitePath,
+			patterns,
+			extension,
+			domains,
+			); err != nil {
 			Logger.Println(err.Error())
 		}
 		Elapsed(start)

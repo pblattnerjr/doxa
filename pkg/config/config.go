@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"github.com/liturgiko/doxa/pkg/utils/ltfile"
+	"github.com/liturgiko/doxa/pkg/utils/repos"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,12 +12,36 @@ import (
 )
 const (
 	DataDir = "data"
-	SQL = "sql"
 	HTTPDir = "http"
+	LogDir = "logs"
+	ReposDir = "repos"
+	Site = "site"
+	SQL = "sql"
+	SQLDbName = "liturgical.db"
 	StaticDir = "liml"
 	TemplatesDir = "templates"
-	LogDir = "logs"
 )
+type Paths struct {
+	DbPath string
+	HomePath string
+	HTTPPath string
+	LogPath string
+	ReposPath string
+	SitePath string
+	TemplatesPath string
+}
+func NewPaths(home string, siteUrl string) *Paths {
+	var paths = new(Paths)
+	paths.HomePath = home
+	paths.DbPath = filepath.Join(paths.HomePath, DataDir, SQL, SQLDbName)
+	paths.HTTPPath = filepath.Join(paths.HomePath, HTTPDir)
+	paths.LogPath = filepath.Join(paths.HomePath, LogDir)
+	paths.ReposPath = filepath.Join(paths.HomePath, ReposDir)
+	sitePath, _ := repos.DirPath(filepath.Join(paths.ReposPath, Site),siteUrl)
+	paths.SitePath = sitePath
+	paths.TemplatesPath = filepath.Join(paths.HomePath, TemplatesDir)
+	return paths
+}
 // Initializes the config file and directories
 // for the doxago cli. If these already exist,
 // they will not be overwritten.

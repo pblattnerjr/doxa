@@ -10,5 +10,5 @@ func TestGenerate(t *testing.T) {
 	site := os.Getenv("site")
 	template := os.Getenv("template")
 	domains := []string{"gr_gr_cog", "en_us_dedes", "spa_ga_"}
-	Generate(home, template, site, domains)
+	GenerateFromTemplate(home, template, site, domains)
 }
