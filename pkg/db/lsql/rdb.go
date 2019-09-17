@@ -27,20 +27,6 @@ import (
 )
 
 
-// Schema to create Ltext
-var SchemaLtext = `CREATE TABLE ltext (
-    id       TEXT PRIMARY KEY,
-    topic    TEXT,
-    key      TEXT,
-    value    TEXT,
-    nnp      TEXT,
-    nwp      TEXT,
-    comment  TEXT,
-    redirect TEXT);`
-
-// SQL to insert Ltext into database
-var InsertLtext = `INSERT INTO ltext (id, topic, key, value, nnp, nwp, comment, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-
 // fileExists checks if a file exists and is not a directory before we
 // try using it to prevent further errors.
 func FileExists(filename string) bool {
@@ -65,7 +51,7 @@ func ReposToSqlite(
 		os.Remove(dbname)
 	}
 	// set up the schema
-	err = CreateSchema(SchemaLtext, dbname)
+	err = CreateSchema(models.LtextSchema, dbname)
 	if err == nil {
 		for _, repo := range repos {
 			err := RepoToSqlite(repo, dbname, printProgress, logger)
@@ -193,7 +179,7 @@ func RepoToSqlite(
 							if lineParts.IsRedirect {
 								ltext.Redirect = lineParts.Redirect
 							}
-							_, err := db.Exec(InsertLtext, ltext.ID, ltext.Topic, ltext.Key, ltext.Value, ltext.NNP, ltext.NWP, ltext.Comment, ltext.Redirect)
+							_, err := db.Exec(models.LtextSQLInsert, ltext.ID, ltext.Topic, ltext.Key, ltext.Value, ltext.NNP, ltext.NWP, ltext.Comment, ltext.Redirect)
 							if err != nil {
 								if strings.HasPrefix(err.Error(), "UNIQUE") {
 									logger.Printf("duplicate key: %s: line %d", f.Name, lineCnt)
@@ -225,7 +211,7 @@ func Repos2Sqlite(
 		os.Remove(dbname)
 	}
 	// set up the schema
-	err = CreateSchema(SchemaLtext, dbname)
+	err = CreateSchema(models.LtextSchema, dbname)
 	if err == nil {
 		// open the database
 		var db *sqlx.DB
@@ -239,10 +225,7 @@ func Repos2Sqlite(
 		// Ares2LpFromGithub -> LineParts -> Lp2Lt -> Ltext, which is then written to sqlite
 		//		db.Ping()
 		for ltext := range mappers.Lp2Lt(repos.Ares2LpFromGithub(urls, "ares", printProgress, logger)) {
-			//ltext.Value = strings.ReplaceAll(ltext.Value, "'","''")
-			//ltext.NWP = strings.ReplaceAll(ltext.NWP, "'","''")
-			//Data = append(Data, ltext)
-			_, err := db.Exec(InsertLtext, ltext.ID, ltext.Topic, ltext.Key, ltext.Value, ltext.NNP, ltext.NWP, ltext.Comment, ltext.Redirect)
+			_, err := db.Exec(models.LtextSQLInsert, ltext.ID, ltext.Topic, ltext.Key, ltext.Value, ltext.NNP, ltext.NWP, ltext.Comment, ltext.Redirect)
 			if err != nil {
 				if strings.HasPrefix(err.Error(), "UNIQUE") {
 					logger.Printf("duplicate key: %s ", ltext.ID)
@@ -279,7 +262,7 @@ func LocalAres2Sqlite(
 		os.Remove(dbname)
 	}
 	// set up the schema
-	err = CreateSchema(SchemaLtext, dbname)
+	err = CreateSchema(models.LtextSchema, dbname)
 	if err == nil {
 		// open the database
 		var db *sqlx.DB
@@ -291,7 +274,7 @@ func LocalAres2Sqlite(
 		// pipeline: each line of each file of each repo is processed as follows...
 		// Ares2LpFromLocalDir -> LineParts -> Lp2Lt -> Ltext, which is then written to sqlite
 		for ltext := range mappers.Lp2Lt(repos.Ares2LpFromLocalDir(rootDir, "ares", printProgress, logger)) {
-			_, err := db.Exec(InsertLtext, ltext.ID, ltext.Topic, ltext.Key, ltext.Value, ltext.NNP, ltext.NWP, ltext.Comment, ltext.Redirect)
+			_, err := db.Exec(models.LtextSQLInsert, ltext.ID, ltext.Topic, ltext.Key, ltext.Value, ltext.NNP, ltext.NWP, ltext.Comment, ltext.Redirect)
 			if err != nil {
 				if strings.HasPrefix(err.Error(), "UNIQUE") {
 					logger.Printf("duplicate key: %s ", ltext.ID)

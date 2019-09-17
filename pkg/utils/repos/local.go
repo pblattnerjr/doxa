@@ -23,7 +23,7 @@ func Ares2LpFromLocalDir(rootDir string,
 				if err != nil {
 					return err
 				}
-				if strings.HasSuffix(info.Name(),".git") {
+				if strings.HasSuffix(info.Name(), ".git") {
 					fmt.Println(fmt.Sprintf("Processing: %s", path[:len(path)-5]))
 				}
 				if !info.IsDir() && strings.HasSuffix(path, fileSuffix) {

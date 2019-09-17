@@ -3,6 +3,7 @@ package repos
 import (
 	"fmt"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 )
+
 // converts repository clone url into
 // a path into which to clone the repository
 func DirPath(parentDir, theUrl string) (string, error) {
@@ -20,6 +22,7 @@ func DirPath(parentDir, theUrl string) (string, error) {
 	result = result[:len(result)-4]
 	return result, err
 }
+
 // Clone sequentially each repository to the parent
 // directory specified in path.
 // The directory will be created by the Clone function.
@@ -40,6 +43,7 @@ func CloneRepos(path string, urls []string) error {
 	}
 	return err
 }
+
 // Clone concurrently each repository to the parent
 // directory specified in path.
 // The directory will be created by the Clone function.
@@ -63,7 +67,7 @@ func CloneConcurrently(path string, urls []string) error {
 		}(path, url)
 	}
 	for i := 0; i < len(urls); i++ {
-		fmt.Println(<- done)
+		fmt.Println(<-done)
 		if err := <-errch; err != nil {
 			fmt.Println(err.Error())
 		}
@@ -81,6 +85,7 @@ func Clone(path string, url string) (string, error) {
 	})
 	return dirPath, err
 }
+
 // adds *, then commits, using the msg
 func Commit(path, url, msg string) error {
 	dirPath, err := DirPath(path, url)
@@ -110,7 +115,41 @@ func Commit(path, url, msg string) error {
 	})
 	return err
 }
-func Push(path, url , username, password string) error {
+func Pull(path, url string) (plumbing.Hash, error) {
+	var hash plumbing.Hash
+	dirPath, err := DirPath(path, url)
+	if err != nil {
+		return hash, err
+	}
+	r, err := git.PlainOpen(dirPath)
+	if err != nil {
+		return hash, err
+	}
+	// Get the working directory for the repository
+	w, err := r.Worktree()
+	if err != nil {
+		return hash, err
+	}
+	// Pull the latest changes from the origin remote and merge into the current branch
+	err = w.Pull(&git.PullOptions{
+		RemoteName: "origin",
+		Force: true,
+	})
+	if err != nil {
+		return hash, err
+	}
+	// Print the latest commit that was just pulled
+	ref, err := r.Head()
+	if err != nil {
+		return hash, err
+	}
+	commit, err := r.CommitObject(ref.Hash())
+	if err != nil {
+		return hash, err
+	}
+	return commit.Hash, err
+}
+func Push(path, url, username, password string) error {
 	dirPath, err := DirPath(path, url)
 	if err != nil {
 		return err
@@ -127,6 +166,7 @@ func Push(path, url , username, password string) error {
 	})
 	return err
 }
+
 // will add files of all types except for .git dir and its contents.
 // TODO: add filter from gitignore file in root dir
 func FilesToProcess(dirPath string) []string {

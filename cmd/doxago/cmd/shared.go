@@ -1,3 +1,4 @@
+// Shared functions for the doxago commands
 package cmd
 
 import (
@@ -13,6 +14,3 @@ func Elapsed(start time.Time) {
 func Doxa() {
 	fmt.Println(GLORY)
 }
-// repos clone
-// repos pull
-// repos push (adds all, commits, pushes)

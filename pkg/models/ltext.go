@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"github.com/liturgiko/doxa/pkg/utils/ares"
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
 	"strings"
@@ -25,6 +26,29 @@ type Ltext struct {
 	Comment  string
 	Redirect string
 }
+// An array of liturgical text records
+type LtextArray []Ltext
+
+// Schema to create Ltext
+var LtextSchema = `CREATE TABLE ltext (
+    id       TEXT PRIMARY KEY,
+    topic    TEXT,
+    key      TEXT,
+    value    TEXT,
+    nnp      TEXT,
+    nwp      TEXT,
+    comment  TEXT,
+    redirect TEXT);`
+
+// SQL to insert Ltext into database
+var LtextSQLInsert = `INSERT INTO ltext (id, topic, key, value, nnp, nwp, comment, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+
+// SQL to find Ltext by ID
+var LtextSQLReadByID = `SELECT id, value FROM ltext WHERE id = ?`
+
+// SQL to find Ltext records where ID is like a supplied pattern
+var LtextSQLReadWhereIdLike = `SELECT id, value FROM ltext WHERE id like ?`
+
 // Parses the ID field of the Ltext struct
 // and returns an Id struct with the parts
 // that make up an ID:
@@ -53,8 +77,6 @@ func (l Ltext) ToId() (Id, error) {
 	result.Key = parts[2]
 	return result, nil
 }
-// An array of liturgical text records
-type LtextArray []Ltext
 
 // Convert an array of liturgical text records to a Json string.
 // This is useful for sending a response over http(s).
@@ -101,3 +123,60 @@ func LineParts2Ltext (out chan<- Ltext, in <-chan ares.LineParts) {
 	}
 
 }
+
+func (l *Ltext) GetRecord(db *sqlx.DB) error {
+	row := db.QueryRow(LtextSQLReadByID, l.ID)
+	err := row.Scan(&l.ID, &l.Value)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+func (l *Ltext) UpdateRecord(db *sqlx.DB) error {
+	return errors.New("not implemented")
+}
+
+func (l *Ltext) DeleteRecord(db *sqlx.DB) error {
+	return errors.New("not implemented")
+}
+
+func (l *Ltext) CreateRecord(db *sqlx.DB) error {
+	return errors.New("not implemented")
+}
+func (l *LtextArray) GetRecordsByTopicKey(db *sqlx.DB, topic string, key string) error {
+	type Record struct {
+		id string
+		value string
+	}
+	var id []string
+	id = append(id, "%")
+	id = append(id, topic)
+	id = append(id, key)
+
+	like := strings.Join(id, "~")
+	rows, err := db.Queryx(LtextSQLReadWhereIdLike, like)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var r Record
+		err = rows.StructScan(&r)
+		if err != nil {
+			return err
+		}
+		var ltext Ltext
+		ltext.ID = r.id
+		ltext.Value = r.value
+		l.Append(&ltext)
+	}
+	return err
+}
+func (l *LtextArray) Append(i *Ltext) {
+	*l = append(*l, *i)
+}
+func NewLtextArray() *LtextArray {
+	var l LtextArray
+	return &l
+}
+

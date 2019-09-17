@@ -25,12 +25,12 @@ func TestDirPath(t *testing.T) {
 	}
 }
 func TestCommit(t *testing.T) {
-  home := os.Getenv("dir")
-  url := os.Getenv("url")
-  err := Commit(home, url, "test commit")
-  if err != nil {
-  	t.Error(err.Error())
-  }
+	home := os.Getenv("dir")
+	url := os.Getenv("url")
+	err := Commit(home, url, "test commit")
+	if err != nil {
+		t.Error(err.Error())
+	}
 }
 func TestPush(t *testing.T) {
 	home := os.Getenv("dir")
@@ -39,10 +39,19 @@ func TestPush(t *testing.T) {
 	if err != nil {
 		t.Error("commit error:", err.Error())
 	}
-	err = Push(home, url, os.Getenv("usr"),os.Getenv("pwd"))
+	err = Push(home, url, os.Getenv("usr"), os.Getenv("pwd"))
 	if err != nil {
 		t.Error("push error", err.Error())
 	}
+}
+func TestPull(t *testing.T) {
+	home := os.Getenv("dir")
+	url := os.Getenv("url")
+	hash, err := Pull(home, url)
+	if err != nil {
+		t.Error("pull error", err.Error())
+	}
+	fmt.Println(hash)
 }
 
 func TestFilesToProcess(t *testing.T) {
@@ -51,7 +60,7 @@ func TestFilesToProcess(t *testing.T) {
 	if home == "" || url == "" {
 		t.Error("home or url environment variable not set")
 	} else {
-		dir, _ := DirPath(home,url)
+		dir, _ := DirPath(home, url)
 		fmt.Println(FilesToProcess(dir))
 	}
 }

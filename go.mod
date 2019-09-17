@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/google/go-github v17.0.0+incompatible
+	github.com/gorilla/mux v1.6.2
 	github.com/jinzhu/gorm v1.9.10
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/liturgiko/go v0.0.0-20190901131644-e6ef1c108127
