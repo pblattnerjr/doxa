@@ -147,7 +147,10 @@ func (l *Ltext) DeleteRecord(db *sqlx.DB) error {
 func (l *Ltext) CreateRecord(db *sqlx.DB) error {
 	return errors.New("not implemented")
 }
-func (l *LtextArray) GetRecordsByTopicKey(db *sqlx.DB, topic string, key string, omitEmptyValue bool) error {
+// GetRecordsByTopicKey returns records whose ID ends with the requested topic and key.
+// If includeEmptyValue = true, then if the record's value field is empty, it will still be returned.
+// Otherwise it will be excluded from the results.
+func (l *LtextArray) GetRecordsByTopicKey(db *sqlx.DB, topic string, key string, includeEmptyValue bool) error {
 	type Record struct {
 		id string `db:"id"`
 		value string `db:"value"`
@@ -158,13 +161,13 @@ func (l *LtextArray) GetRecordsByTopicKey(db *sqlx.DB, topic string, key string,
 	id = append(id, key)
 
 	like := strings.Join(id, "~")
-	if omitEmptyValue {
-		return db.Select(l, LtextSQLReadWhereIdLikeValueNotBlank, like)
-	} else {
+	if includeEmptyValue {
 		return db.Select(l, LtextSQLReadWhereIdLike, like)
+	} else {
+		return db.Select(l, LtextSQLReadWhereIdLikeValueNotBlank, like)
 	}
 }
-func (l *LtextArray) GetRecordsByLibraryTopic(db *sqlx.DB, library string, topic string, omitEmptyValue bool) error {
+func (l *LtextArray) GetRecordsByLibraryTopic(db *sqlx.DB, library string, topic string, includeEmptyValue bool) error {
 	type Record struct {
 		id string `db:"id"`
 		value string `db:"value"`
@@ -175,10 +178,10 @@ func (l *LtextArray) GetRecordsByLibraryTopic(db *sqlx.DB, library string, topic
 	id = append(id, "%")
 
 	like := strings.Join(id, "~")
-	if omitEmptyValue {
-		return db.Select(l, LtextSQLReadWhereIdLikeValueNotBlank, like)
-	} else {
+	if includeEmptyValue {
 		return db.Select(l, LtextSQLReadWhereIdLike, like)
+	} else {
+		return db.Select(l, LtextSQLReadWhereIdLikeValueNotBlank, like)
 	}
 }
 func (l *LtextArray) Append(i *Ltext) {

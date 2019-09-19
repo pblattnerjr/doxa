@@ -23,13 +23,15 @@ func Ages(dbname string, port string)  {
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/id/{library}/{topic}/{key}", IDHandler)
-	r.HandleFunc("/id/{topic}/{key}", TKHandler)
-	r.HandleFunc("/id", HomeHandler)
+	r.HandleFunc("/id/{library}/{topic}/{key}", IDHandler).Methods("GET")
+	r.HandleFunc("/id/{topic}/{key}", TKHandler).Queries("empty","{empty}").Methods("GET")
+	r.HandleFunc("/id/{topic}/{key}", TKHandler).Methods("GET")
+	r.HandleFunc("/id", HomeHandler).Methods("GET")
 
-	r.HandleFunc("/topic/{library}/{topic}", TopicHandler)
+	r.HandleFunc("/topic/{library}/{topic}", TopicHandler).Queries("empty","{empty}").Methods("GET")
+	r.HandleFunc("/topic/{library}/{topic}", TopicHandler).Methods("GET")
 
-	r.HandleFunc("/", HomeHandler)
+	r.HandleFunc("/", HomeHandler).Methods("GET")
 	srv := &http.Server{
 		Handler:      r,
 		Addr:         "127.0.0.1:" + port,
@@ -71,12 +73,15 @@ func IDHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 // TKHandler returns liturgical texts for all libraries that have the requested topic and key.
+// If the query ?empty=true is set, then it will include records with empty values.
 func TKHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("charset", "utf-8")
 	recs := models.NewLtextArray()
 	vars := mux.Vars(r)
-	err := recs.GetRecordsByTopicKey(db, vars["topic"], vars["key"], true)
+	includeEmpty := isTrue(vars["empty"])
+
+	err := recs.GetRecordsByTopicKey(db, vars["topic"], vars["key"], includeEmpty)
 	if err == nil {
 		t, _ := template.New("webpage").Parse(HtmlTemplate)
 		t.Execute(w, recs)
@@ -90,7 +95,10 @@ func TopicHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("charset", "utf-8")
 	recs := models.NewLtextArray()
 	vars := mux.Vars(r)
-	err := recs.GetRecordsByLibraryTopic(db, vars["library"], vars["topic"], true)
+
+	includeEmpty := isTrue(vars["empty"])
+
+	err := recs.GetRecordsByLibraryTopic(db, vars["library"], vars["topic"], includeEmpty)
 	if err == nil {
 		t, _ := template.New("webpage").Parse(HtmlTemplate)
 		t.Execute(w, recs)
@@ -122,3 +130,7 @@ const HtmlTemplate = `<!DOCTYPE HTML>
   </body>
 </html>`
 
+// isTrue checks to see if the specified bool query parameter is set to 'true'
+func isTrue(s string) bool {
+	return len(s) > 0 && strings.ToLower(s) == "true"
+}
