@@ -38,19 +38,62 @@ var LtextSchema = `CREATE TABLE ltext (
     nnp      TEXT,
     nwp      TEXT,
     comment  TEXT,
-    redirect TEXT);`
+    redirect TEXT,
+    FOREIGN KEY(redirect) REFERENCES ltext(id));`
 
 // SQL to insert Ltext into database
 var LtextSQLInsert = `INSERT INTO ltext (id, topic, key, value, nnp, nwp, comment, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
-// SQL to find Ltext by ID
-var LtextSQLReadByID = `SELECT id, value FROM ltext WHERE id = ?`
+// SQL to find Ltext by ID.
+// Because sometimes the value is empty and instead there is a redirect,
+// We have to do an inner join to do a lookup.  Without the b.id = case in the
+// where clause, we would only get a value back if there was a redirect.
+var LtextSQLReadByID = `SELECT a.id as id, 
+   CASE WHEN LENGTH(a.redirect) = 0 THEN a.value 
+       ELSE b.value 
+   END as value
+FROM ltext a INNER JOIN ltext b 
+WHERE a.id  = ?
+AND b.id =
+    CASE WHEN LENGTH(a.redirect) > 0 THEN a.redirect
+    ELSE a.id
+    END
+`
 
 // SQL to find Ltext records where ID is like a supplied pattern
-var LtextSQLReadWhereIdLike = `SELECT id, value FROM ltext WHERE id LIKE ? ORDER BY id`
+// Because sometimes the value is empty and instead there is a redirect,
+// We have to do an inner join to do a lookup.  Without the b.id = case in the
+// where clause, we would only get a value back if there was a redirect.
+var LtextSQLReadWhereIdLike = `SELECT a.id as id, 
+   CASE WHEN LENGTH(a.redirect) = 0 THEN a.value 
+       ELSE b.value 
+   END as value
+FROM ltext a INNER JOIN ltext b 
+WHERE a.id  like ?
+AND b.id =
+    CASE WHEN LENGTH(a.redirect) > 0 THEN a.redirect
+    ELSE a.id
+    END
+ORDER BY id
+;
+`
 
 // SQL to find Ltext records where ID is like a supplied pattern and value not blank
-var LtextSQLReadWhereIdLikeValueNotBlank = `SELECT id, value FROM ltext WHERE id LIKE ? AND LENGTH(value) > 0 ORDER BY id`
+// Because sometimes the value is empty and instead there is a redirect,
+// We have to do an inner join to do a lookup.  Without the b.id = case in the
+// where clause, we would only get a value back if there was a redirect.
+var LtextSQLReadWhereIdLikeValueNotBlank = `SELECT a.id as id, 
+   CASE WHEN LENGTH(a.redirect) = 0 THEN a.value 
+       ELSE b.value 
+   END as value
+FROM ltext a INNER JOIN ltext b 
+WHERE a.id  like ?
+AND (length(a.value) > 0 or length(a.redirect) >0 )
+AND b.id =
+    CASE WHEN LENGTH(a.redirect) > 0 THEN a.redirect
+    ELSE a.id
+    END
+ORDER BY id;`
 
 // Parses the ID field of the Ltext struct
 // and returns an Id struct with the parts
@@ -128,7 +171,7 @@ func LineParts2Ltext (out chan<- Ltext, in <-chan ares.LineParts) {
 }
 
 func (l *Ltext) GetRecord(db *sqlx.DB) error {
-	row := db.QueryRow(LtextSQLReadByID, l.ID)
+	row := db.QueryRow(LtextSQLReadWhereIdLike, l.ID)
 	err := row.Scan(&l.ID, &l.Value)
 	if err != nil {
 		return err

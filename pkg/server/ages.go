@@ -91,7 +91,8 @@ func IDHandler(w http.ResponseWriter, r *http.Request) {
 		recs.Append(&rec)
 		t.Execute(w, recs)
 	} else {
-		fmt.Fprintf(w, "error: %s!", err.Error())
+		log.Println(err.Error())
+		fmt.Fprintf(w, "%s", "Not found")
 	}
 
 }
@@ -108,7 +109,8 @@ func TKHandler(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		t.Execute(w, recs)
 	} else {
-		fmt.Fprintf(w, "error: %s!", err.Error())
+		log.Println(err.Error())
+		fmt.Fprintf(w, "%s", "Not found")
 	}
 }
 // TopicHandler returns liturgical texts for the requested library and topic.
@@ -124,7 +126,8 @@ func TopicHandler(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		t.Execute(w, recs)
 	} else {
-		fmt.Fprintf(w, "error: %s!", err.Error())
+		log.Println(err.Error())
+		fmt.Fprintf(w, "%s", "Not found")
 	}
 }
 func Elapsed(start time.Time, msg string) {
