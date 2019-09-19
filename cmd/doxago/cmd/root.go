@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var DOXAHOME string
@@ -53,6 +54,8 @@ This tool was created by staff and volunteers of the
 Orthodox Christian Mission Center (OCMC).
 
 It is provided as a free tool to the pan-Orthodox community.  
+
+doxago always gives glory to God!
 
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 `,
@@ -146,3 +149,12 @@ export DOXAHOME=$HOME/doxa
 export PATH=$PATH:$DOXAHOME
 
 On Windows, TBD...`
+
+func Elapsed(start time.Time) {
+	elapsed := time.Since(start)
+	fmt.Printf("Took %s\n", elapsed)
+	Doxa()
+}
+func Doxa() {
+	fmt.Println(GLORY)
+}

@@ -47,7 +47,10 @@ var LtextSQLInsert = `INSERT INTO ltext (id, topic, key, value, nnp, nwp, commen
 var LtextSQLReadByID = `SELECT id, value FROM ltext WHERE id = ?`
 
 // SQL to find Ltext records where ID is like a supplied pattern
-var LtextSQLReadWhereIdLike = `SELECT id, value FROM ltext WHERE id like ?`
+var LtextSQLReadWhereIdLike = `SELECT id, value FROM ltext WHERE id LIKE ? ORDER BY id`
+
+// SQL to find Ltext records where ID is like a supplied pattern and value not blank
+var LtextSQLReadWhereIdLikeValueNotBlank = `SELECT id, value FROM ltext WHERE id LIKE ? AND LENGTH(value) > 0 ORDER BY id`
 
 // Parses the ID field of the Ltext struct
 // and returns an Id struct with the parts
@@ -144,10 +147,10 @@ func (l *Ltext) DeleteRecord(db *sqlx.DB) error {
 func (l *Ltext) CreateRecord(db *sqlx.DB) error {
 	return errors.New("not implemented")
 }
-func (l *LtextArray) GetRecordsByTopicKey(db *sqlx.DB, topic string, key string) error {
+func (l *LtextArray) GetRecordsByTopicKey(db *sqlx.DB, topic string, key string, omitEmptyValue bool) error {
 	type Record struct {
-		id string
-		value string
+		id string `db:"id"`
+		value string `db:"value"`
 	}
 	var id []string
 	id = append(id, "%")
@@ -155,22 +158,28 @@ func (l *LtextArray) GetRecordsByTopicKey(db *sqlx.DB, topic string, key string)
 	id = append(id, key)
 
 	like := strings.Join(id, "~")
-	rows, err := db.Queryx(LtextSQLReadWhereIdLike, like)
-	if err != nil {
-		return err
+	if omitEmptyValue {
+		return db.Select(l, LtextSQLReadWhereIdLikeValueNotBlank, like)
+	} else {
+		return db.Select(l, LtextSQLReadWhereIdLike, like)
 	}
-	for rows.Next() {
-		var r Record
-		err = rows.StructScan(&r)
-		if err != nil {
-			return err
-		}
-		var ltext Ltext
-		ltext.ID = r.id
-		ltext.Value = r.value
-		l.Append(&ltext)
+}
+func (l *LtextArray) GetRecordsByLibraryTopic(db *sqlx.DB, library string, topic string, omitEmptyValue bool) error {
+	type Record struct {
+		id string `db:"id"`
+		value string `db:"value"`
 	}
-	return err
+	var id []string
+	id = append(id, library)
+	id = append(id, topic)
+	id = append(id, "%")
+
+	like := strings.Join(id, "~")
+	if omitEmptyValue {
+		return db.Select(l, LtextSQLReadWhereIdLikeValueNotBlank, like)
+	} else {
+		return db.Select(l, LtextSQLReadWhereIdLike, like)
+	}
 }
 func (l *LtextArray) Append(i *Ltext) {
 	*l = append(*l, *i)
