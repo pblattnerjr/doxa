@@ -13,7 +13,31 @@ import (
 	"time"
 )
 var db *sqlx.DB
+var t *template.Template
 
+const HtmlTemplate = `<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>DB Lookup</title>
+  </head>
+  <body>
+    <table>
+      <tbody>
+		{{range .}}
+			<tr>
+			  <td style="padding: 1em; border: 1px solid #cccccc;">{{.ID}}</td>
+			  <td style="padding: 1em; border: 1px solid #cccccc;">{{.Value}}</td>
+			</tr>
+		{{end}}
+      <tbody>
+    <table>
+  </body>
+</html>`
+
+func init() {
+	t, _ = template.New("webpage").Parse(HtmlTemplate)
+}
 func Ages(dbname string, port string)  {
 	var err error
 	// open the database
@@ -65,7 +89,6 @@ func IDHandler(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		recs := models.NewLtextArray()
 		recs.Append(&rec)
-		t, _ := template.New("webpage").Parse(HtmlTemplate)
 		t.Execute(w, recs)
 	} else {
 		fmt.Fprintf(w, "error: %s!", err.Error())
@@ -83,7 +106,6 @@ func TKHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := recs.GetRecordsByTopicKey(db, vars["topic"], vars["key"], includeEmpty)
 	if err == nil {
-		t, _ := template.New("webpage").Parse(HtmlTemplate)
 		t.Execute(w, recs)
 	} else {
 		fmt.Fprintf(w, "error: %s!", err.Error())
@@ -100,7 +122,6 @@ func TopicHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := recs.GetRecordsByLibraryTopic(db, vars["library"], vars["topic"], includeEmpty)
 	if err == nil {
-		t, _ := template.New("webpage").Parse(HtmlTemplate)
 		t.Execute(w, recs)
 	} else {
 		fmt.Fprintf(w, "error: %s!", err.Error())
@@ -110,25 +131,6 @@ func Elapsed(start time.Time, msg string) {
 	elapsed := time.Since(start)
 	fmt.Printf("%s took %s\n", msg, elapsed)
 }
-const HtmlTemplate = `<!DOCTYPE HTML>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>DB Lookup</title>
-  </head>
-  <body>
-    <table>
-      <tbody>
-		{{range .}}
-			<tr>
-			  <td style="padding: 1em; border: 1px solid #cccccc;">{{.ID}}</td>
-			  <td style="padding: 1em; border: 1px solid #cccccc;">{{.Value}}</td>
-			</tr>
-		{{end}}
-      <tbody>
-    <table>
-  </body>
-</html>`
 
 // isTrue checks to see if the specified bool query parameter is set to 'true'
 func isTrue(s string) bool {
