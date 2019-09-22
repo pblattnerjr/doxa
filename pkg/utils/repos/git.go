@@ -100,12 +100,6 @@ func Commit(path, url, msg string) error {
 	if err != nil {
 		return err
 	}
-	//for _, file := range FilesToProcess(dirPath) {
-	//	_, err = w.Add(file)
-	//	if err != nil {
-	//		log.Printf(err.Error())
-	//	}
-	//}
 	_, err = w.Commit(msg, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "doxasi",

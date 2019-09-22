@@ -14,6 +14,7 @@ import (
 )
 var db *sqlx.DB
 var t *template.Template
+var srv *http.Server
 
 const HtmlTemplate = `<!DOCTYPE HTML>
 <html>
@@ -56,20 +57,22 @@ func Ages(dbname string, port string)  {
 	r.HandleFunc("/topic/{library}/{topic}", TopicHandler).Methods("GET")
 
 	r.HandleFunc("/", HomeHandler).Methods("GET")
-	srv := &http.Server{
+	srv = &http.Server{
 		Handler:      r,
 		Addr:         "127.0.0.1:" + port,
 		// Good practice: enforce timeouts for servers you create!
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-
+	log.Printf("Server running on %s\n", srv.Addr)
 	log.Fatal(srv.ListenAndServe())}
 
 // HomeHandler provides path information in the event that the requester fails
 // to provide a library, topic, key or a topic and key.
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Add /id/library/topic/path to %s. E.g., /gr_gr_cog/actors/Priest", r.URL.Host)
+	fmt.Fprintf(w, "Add /id/library/topic/key to %s, e.g., /gr_gr_cog/actors/Priest to view for specific key.", srv.Addr)
+	fmt.Fprintf(w, "\nor\nAdd /id/topic/key to %s, e.g., /actors/Priest to view for all libraries.", srv.Addr)
+	fmt.Fprintf(w, "\nor\nAdd /topic/library/topic to %s, e.g., /gr_gr_cog/actors to view all keys for that library and topic.", srv.Addr)
 }
 // TKHandler returns the liturgical text that matches the requested library, topic, and key.
 func IDHandler(w http.ResponseWriter, r *http.Request) {

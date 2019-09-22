@@ -42,7 +42,7 @@ var LtextSchema = `CREATE TABLE ltext (
     FOREIGN KEY(redirect) REFERENCES ltext(id));`
 
 // SQL to insert Ltext into database
-var LtextSQLInsert = `INSERT INTO ltext (id, topic, key, value, nnp, nwp, comment, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+var LtextSQLInsert = `INSERT OR REPLACE INTO ltext (id, topic, key, value, nnp, nwp, comment, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
 // SQL to find Ltext by ID.
 // Because sometimes the value is empty and instead there is a redirect,
@@ -179,6 +179,8 @@ func (l *Ltext) GetRecord(db *sqlx.DB) error {
 	return err
 }
 
+// UpdateRecord updates the record with the values contained in the Struct.
+// If the record has a redirect, update the value of the redirect instead
 func (l *Ltext) UpdateRecord(db *sqlx.DB) error {
 	return errors.New("not implemented")
 }
