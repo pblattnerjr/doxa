@@ -4,8 +4,12 @@ Provides utilities for parsing lines from ares files from the AGES Liturgical Wo
 package ares
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
+	"log"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,6 +23,12 @@ var (
 	ErrValueMissingQuote = errors.New("ares: value missing initial or final quote")
 )
 
+func NewErrLineMissingEqualSign(line int) error {
+	return errors.New(fmt.Sprintf("line %d ares: missing equal sign between key and value", line))
+}
+func NewErrValueMissingQuote(line int) error {
+	return errors.New(fmt.Sprintf("line %d ares: value missing initial or final quote", line))
+}
 type LineParts struct {
 	Language       string
 	Country        string
@@ -125,4 +135,79 @@ func ToRedirectId(value string) (string, error) {
 		return value, ErrRedirectInvalid
 	}
 }
+// CleanAres cleans Ares files by finding and fixing the following problems:
+// When finds a value that starts with quote but does not, attempts to joint the next line to it, if the next line appears to be the broken part (due to a line break)
+// When finds a duplicate key, compares the values and keeps the key that has a value, throwing away the key that does not.  If both have values, reports the problem in the log. If only one has a value, deletes the key that does not have a value.
+// Implements F.2019.005
+func CleanAres(in, out string) error {
+	var err error
+	fileIn, err := os.Open(in)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer fileIn.Close()
 
+	fileOut, err := os.Create(out)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer fileOut.Close()
+	w := bufio.NewWriter(fileOut)
+
+	scanner := bufio.NewScanner(fileIn)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		w.WriteString(line + "\n")
+	}
+	w.Flush()
+	return err
+}
+
+// GetAresErrors returns an array of errors found
+// in the specified ares file.  The errors will
+// be one of the error types defined in this package.
+func GetAresErrors(in string) *[]error {
+	var result []error
+	file, err := os.Open(in)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	var fileNameParts FilenameParts
+	fileNameParts, err = ParseAresFileName(file.Name())
+	if err != nil {
+		result = append(result, err)
+	}
+	var lineCnt int
+	inCommentBlock := false
+
+	seenKey := map[string]bool{}
+
+	for scanner.Scan() {
+		lineCnt = lineCnt + 1
+		line := strings.TrimSpace(scanner.Text())
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "/*") {
+			inCommentBlock = true
+			continue
+		}
+		if strings.HasPrefix(line, "*/") || strings.HasSuffix(line, "*/") {
+			inCommentBlock = false
+			continue
+		}
+		if !inCommentBlock {
+			lineParts, err := ParseLine(fileNameParts, line)
+			lineParts.LineNbr = lineCnt
+			if len(lineParts.Key) > 0 && seenKey[lineParts.Key] {
+				result = append(result,errors.New(fmt.Sprintf("%s %d: duplicate key %s", file.Name(), lineCnt, lineParts.Key)))
+			} else {
+				seenKey[lineParts.Key] = true
+			}
+			if err != nil  {
+				result = append(result, errors.New(fmt.Sprintf("%s %d: %s", file.Name(), lineCnt, err)))
+			}
+		}
+	}
+	return &result
+}

@@ -1,6 +1,9 @@
 package ares
 
 import (
+	"fmt"
+	"path"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -234,4 +237,32 @@ func TestRedirectBad(t *testing.T) {
 		t.Error("Expected err msg about bad redirect ID, got", err.Error())
 	}
 }
+// TestCleanAres is test case for F.2019.005.
+// The new feature is shown to be completed
+// when this test case passes, i.e. the files
+// in test/out have no errors in them.
+func TestCleanAres(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println(filename)
+	dir, _ := path.Split(filename)
+	dir = path.Join(dir,"test")
+	in := path.Join(dir,"in","dismissals_gr_GR_cog.ares")
+	out := path.Join(dir,"out","dismissals_gr_GR_cog.ares")
+	err := CleanAres(in, out)
+	if err != nil {
+		t.Error(err)
+	}
+	// len(*aresErrors) will be zero if all errors were
+	// corrected by CleanAres.
+	aresErrors := GetAresErrors(out)
+
+	if len(*aresErrors) > 0 {
+		t.Error(fmt.Sprintf("Expected no errors, got %d", len(*aresErrors)))
+		for _, err := range *aresErrors {
+			t.Error(err.Error())
+		}
+	}
+}
+
+
 
