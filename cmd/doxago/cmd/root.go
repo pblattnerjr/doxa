@@ -17,18 +17,20 @@ package cmd
 import (
 	"fmt"
 	"github.com/liturgiko/doxa/pkg/config"
+	"github.com/liturgiko/doxa/pkg/db/lsql"
 	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
 	"os"
+	"os/user"
+	"path"
 	"path/filepath"
 	"time"
 )
 
 var DOXAHOME string
-var LIMLHOME string
-var DOXAPORT string
+var DOXAPORT = "8080"
 var GLORY string
 var REPOPATH string
 
@@ -81,29 +83,19 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	DOXAHOME = os.Getenv("DOXAHOME")
-	LIMLHOME = os.Getenv("LIMLHOME")
-	DOXAPORT = os.Getenv("DOXAPORT")
-	checkVar(DOXAHOME)
-	checkVar(DOXAPORT)
-	checkVar(LIMLHOME)
+	homeDir := homeDir()
+	DOXAHOME = path.Join(homeDir,"doxa2")
 
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		r, err := config.Initdoxa(DOXAHOME)
-
-		if err != nil {
-			log.Fatal(err)
-			os.Exit(2)
-		} else {
-			fmt.Println(r)
+	// if the DOXA home does not exist, initialize it
+	if _, err := os.Stat(DOXAHOME); os.IsNotExist(err) {
+		initializeDoxaHome()
+	} else { // if it does exist, but the config is missing, initialize again
+		if _, err := os.Stat(path.Join(DOXAHOME,"doxago.yaml")); os.IsNotExist(err) {
+			initializeDoxaHome()
 		}
-		// Search config in home directory with name ".doxa" (without extension).
-		viper.AddConfigPath(DOXAHOME)
-		viper.SetConfigName(".doxago")
 	}
+
+	DOXAPORT = viper.GetString("port.http.doxa")
 
 	viper.AutomaticEnv() // read in environment variables that match
 
@@ -129,26 +121,12 @@ func initConfig() {
 	REPOPATH = filepath.Join(DOXAHOME, "repos")
 	ltfile.CreateDir(REPOPATH)
 	Paths = config.NewPaths(DOXAHOME, viper.GetString("github.repos.site"))
-}
-func checkVar(v string) {
-	if v == "" {
-		fmt.Println(tmpl)
-		os.Exit(1)
+	db :=	filepath.Join(DOXAHOME, config.DataDir, config.SQL, dbFilename)
+
+	if _, err := os.Stat(db); os.IsNotExist(err) {
+		initializeDb(db)
 	}
 }
-const tmpl = `
-doxa cannot run unless you first set 
-the environmental variables shown below.
-How you do this depends on your operating system.
-
-On a Mac, edit .bash_profile in your home directory and
-add the following:
-
-export DOXAPORT=8080
-export DOXAHOME=$HOME/doxa
-export PATH=$PATH:$DOXAHOME
-
-On Windows, TBD...`
 
 func Elapsed(start time.Time) {
 	elapsed := time.Since(start)
@@ -157,4 +135,54 @@ func Elapsed(start time.Time) {
 }
 func Doxa() {
 	fmt.Println(GLORY)
+}
+
+// homeDir returns the home directory of the current user
+func homeDir() string {
+	usr, err := user.Current()
+	if err != nil {
+		Logger.Println(err.Error())
+	}
+	return usr.HomeDir
+}
+
+func initializeDoxaHome() {
+	r, err := config.Initdoxa(DOXAHOME)
+
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(2)
+	} else {
+		fmt.Println(r)
+	}
+	// Search config in home directory with name ".doxa" (without extension).
+	viper.AddConfigPath(DOXAHOME)
+	viper.SetConfigName(".doxago")
+}
+
+func initializeDb(db string) {
+	// load the database
+	start := time.Now()
+
+	// set up the logger, which will be passed to the functions that do the processing
+	LogFile, err := os.OpenFile(LogFilename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer LogFile.Close()
+
+	Logger.SetOutput(LogFile)
+	Logger.SetFlags(log.Ldate + log.Ltime + log.Lshortfile)
+
+	repos := viper.GetStringSlice("github.repos.ares")
+	fmt.Println("loading ares files from Github to sql database")
+	fmt.Println(fmt.Sprintf("DB file is: %s", db))
+	err = lsql.Repos2Sqlite(repos, db, true, &Logger)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Printf("\nFinished loading ares files into %s.", dbFilename)
+	fmt.Printf("\nCheck %s to see if there were errors.\n", LogFilename)
+	Elapsed(start)
+
 }

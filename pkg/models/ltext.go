@@ -29,6 +29,13 @@ type Ltext struct {
 // An array of liturgical text records
 type LtextArray []Ltext
 
+// Prefix for generating SQL for db read
+var ReadPrefix = `PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+`
+var ReadSuffix = `
+COMMIT;`
+
 // Schema to create Ltext
 var LtextSchema = `CREATE TABLE ltext (
     id       TEXT PRIMARY KEY,
@@ -41,8 +48,13 @@ var LtextSchema = `CREATE TABLE ltext (
     redirect TEXT,
     FOREIGN KEY(redirect) REFERENCES ltext(id));`
 
-// SQL to insert Ltext into database
+// SQL to insert Ltext into database.
+//  This is used for insertions in an existing database.
 var LtextSQLInsert = `INSERT OR REPLACE INTO ltext (id, topic, key, value, nnp, nwp, comment, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+
+// SQL for load of db via .read
+// This is used when we are creating a database by reading ares files.
+var ReadSQLInsert = "INSERT INTO ltext VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');\n"
 
 // SQL to find Ltext by ID.
 // Because sometimes the value is empty and instead there is a redirect,

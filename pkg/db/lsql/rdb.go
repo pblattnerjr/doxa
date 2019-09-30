@@ -6,6 +6,7 @@ package lsql
 // TODO: 1) write sql more quickly.  The commented out code creates a sql file to load.  There are some errors when it loads.  Need to figure out why.
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
@@ -220,32 +221,70 @@ func Repos2Sqlite(
 			logger.Println(err.Error())
 			return errors.New(err.Error() + ": " + dbname)
 		}
-		//		var Data []*models.Ltext
-		// pipeline: each line of each file of each repo is processed as follows...
-		// Ares2LpFromGithub -> LineParts -> Lp2Lt -> Ltext, which is then written to sqlite
-		//		db.Ping()
+		idMap := make(map[string]bool)
+
+		tx, err := db.Begin()
+		check(err,logger)
 		for ltext := range mappers.Lp2Lt(repos.Ares2LpFromGithub(urls, "ares", printProgress, logger)) {
-			_, err := db.Exec(models.LtextSQLInsert, ltext.ID, ltext.Topic, ltext.Key, ltext.Value, ltext.NNP, ltext.NWP, ltext.Comment, ltext.Redirect)
-			if err != nil {
-				if strings.HasPrefix(err.Error(), "UNIQUE") {
-					logger.Printf("duplicate key: %s ", ltext.ID)
-				} else {
-					logger.Printf(err.Error())
-				}
+			// report non-unique id
+			if idMap[ltext.ID] {
+				logger.Println(fmt.Sprintf("Duplicate ID: %s",ltext.ID))
+			} else { // write sql for unique id
+				idMap[ltext.ID] = true
+				_, err = tx.Exec(fmt.Sprintf(models.ReadSQLInsert, ltext.ID, ltext.Topic, ltext.Key, strings.ReplaceAll(ltext.Value, "'", "''"), strings.ReplaceAll(ltext.NNP, "'", "''"), strings.ReplaceAll(ltext.NWP, "'", "''"), strings.ReplaceAll(ltext.Comment, "'", "''"), ltext.Redirect))
+				check(err,logger)
 			}
 		}
-		// The idea below is to write a sql file, then load it into
-		// an empty sqlite db.  If it is properly formatted, and does
-		// not have any errors (e.g. duplicate ids), it loads in about 3 seconds.
-		// But, at the moment, there are bad lines being written that prevent the load
-		// from finishing.
-		//t := template.Must(template.New("sql").Parse(sqlFileTmpl))
-		//f, err := os.Create("/Users/mac002/doxago/data/sql/out.sql")
-		//if err != nil {
-		//	log.Println("create file: ", err)
-		//}
-		//err = t.Execute(f,Data)
+		err = tx.Commit()
 	}
+	return err
+}
+// Loads the repo into memory from Github, then writes the lines from each file
+// as SQL statements that can be loaded into a database.
+func Repos2Sql(
+	urls []string,
+	dbname string,
+	printProgress bool,
+	logger *log.Logger,
+) error {
+	var err error
+	sqlFilename := dbname[:len(dbname)-2] + "sql"
+
+	// delete existing database
+	if FileExists(dbname) {
+		os.Remove(dbname)
+	}
+	// delete existing sql file
+	if FileExists(sqlFilename) {
+		os.Remove(sqlFilename)
+	}
+	f, err := os.Create(sqlFilename)
+	check(err,logger)
+
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+	// write pragma to turn off foreign keys
+	_, err = w.WriteString(fmt.Sprintf("%s\n",models.ReadPrefix))
+	check(err,logger)
+	// write schema
+	_, err = w.WriteString(fmt.Sprintf("%s\n",models.LtextSchema))
+	check(err,logger)
+
+	idMap := make(map[string]bool)
+
+	for ltext := range mappers.Lp2Lt(repos.Ares2LpFromGithub(urls, "ares", printProgress, logger)) {
+		// report non-unique id
+		if idMap[ltext.ID] {
+			logger.Println(fmt.Sprintf("Duplicate ID: %s",ltext.ID))
+		} else { // write sql for unique id
+			idMap[ltext.ID] = true
+			_, err = w.WriteString(fmt.Sprintf(models.ReadSQLInsert, ltext.ID, ltext.Topic, ltext.Key, strings.ReplaceAll(ltext.Value, "'", "''"), strings.ReplaceAll(ltext.NNP, "'", "''"), strings.ReplaceAll(ltext.NWP, "'", "''"), strings.ReplaceAll(ltext.Comment, "'", "''"), ltext.Redirect))
+		}
+	}
+	_, err = w.WriteString(fmt.Sprintf("%s\n",models.ReadSuffix))
+
+	w.Flush()
 	return err
 }
 // Reads lines from ares files in local directories,
@@ -286,6 +325,7 @@ func LocalAres2Sqlite(
 	}
 	return err
 }
+
 const sqlFileTmpl = `PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
 CREATE TABLE ltext (
@@ -300,3 +340,8 @@ CREATE TABLE ltext (
 {{ range .}}INSERT INTO ltext VALUES('{{.ID}}','{{.Topic}}','{{.Key}}','{{.Value}}','{{.NNP}}','{{.NWP}}','{{.Comment}}','{{.Redirect}}');
 {{end}}COMMIT;
 `
+func check(err error, logger *log.Logger) {
+	if err != nil {
+		logger.Println(err.Error())
+	}
+}

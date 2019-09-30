@@ -3,11 +3,13 @@ module github.com/liturgiko/doxa
 go 1.12
 
 require (
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/google/go-github v17.0.0+incompatible
+	github.com/google/pprof v0.0.0-20190930153522-6ce02741cba3 // indirect
 	github.com/gorilla/mux v1.6.2
+	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/jinzhu/gorm v1.9.10
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/liturgiko/go v0.0.0-20190901131644-e6ef1c108127
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/neo4j/neo4j-go-driver v1.7.4
 	github.com/spf13/cobra v0.0.5

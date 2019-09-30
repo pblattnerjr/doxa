@@ -28,6 +28,7 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 )
@@ -108,7 +109,7 @@ the valid options at each point.
 				repos = viper.GetStringSlice("github.repos.ares")
 			}
 		}
-		aresPath := viper.GetString("ares.dir")
+		aresPath := path.Join(Paths.ReposPath, "ares")
 
 		msg := fmt.Sprintf("loading %s from %s to %s", loadWhat(), loadFrom(), loadTo())
 		fmt.Println(msg)

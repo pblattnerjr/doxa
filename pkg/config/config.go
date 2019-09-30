@@ -97,14 +97,14 @@ generate.output.types:
 generate.pdf.lib: go
 
 # Test Github repositories to be processed
-test.github.repos:
+test.github.repos.ares:
 - https://github.com/liturgiko/testrepo1.git
 - https://github.com/liturgiko/testrepo2.git
 
 # Github repositories to be processed
 # For the clone, each one is processed concurrently.
 # So list the largest first in order to reduce processing time.
-github.repos:
+github.repos.ares:
 - https://github.com/AGES-Initiatives/ages-alwb-library-gr-gr-cog.git
 - https://github.com/AGES-Initiatives/ages-alwb-library-en-us-dedes.git
 - https://github.com/AGES-Initiatives/ages-alwb-library-en-us-goa.git
