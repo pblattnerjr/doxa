@@ -136,8 +136,13 @@ func ToRedirectId(value string) (string, error) {
 	}
 }
 // CleanAres cleans Ares files by finding and fixing the following problems:
-// When finds a value that starts with quote but does not, attempts to joint the next line to it, if the next line appears to be the broken part (due to a line break)
-// When finds a duplicate key, compares the values and keeps the key that has a value, throwing away the key that does not.  If both have values, reports the problem in the log. If only one has a value, deletes the key that does not have a value.
+// When finds a value that starts with quote but does not end with one,
+// attempts to joint the next line to it, if the next line appears to be the
+// broken part (due to a line break)
+// When finds a duplicate key, compares the values and keeps the key that has a value,
+// throwing away the key that does not.
+// If both have values, reports the problem in the log.
+// If only one has a value, deletes the key that does not have a value.
 // Implements F.2019.005
 func CleanAres(in, out string) error {
 	var err error
