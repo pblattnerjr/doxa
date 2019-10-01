@@ -23,7 +23,7 @@ func init() {
 
 // Test process Git repos
 func TestRepos2Sqlite(t *testing.T) {
-	repos := []string{"https://github.com/AGES-Initiatives/ages-alwb-library-gr-gr-cog.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-dedes.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-goa.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-holycross.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-oca.git","https://github.com/AGES-Initiatives/ages-alwb-library-ancillary.git","https://github.com/AGES-Initiatives/ages-alwb-library-client-enpublic.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-fr-omvol.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-uk-ware.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-acook.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-andronache.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-barrett.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-boyer.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-constantinides.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-duvall.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-houpos.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-repass.git","https://github.com/AGES-Initiatives/ages-alwb-library-en-us-unknown.git","https://github.com/AGES-Initiatives/ages-alwb-library-lash.git","https://github.com/AGES-Initiatives/ages-alwb-scripture.git"}
+	repos := []string{"https://github.com/liturgiko/testrepo1.git","https://github.com/liturgiko/testrepo2.git"}
 	err := Repos2Sqlite(repos, "test.db", true, &logger)
 	if err != nil {
 		t.Error("error:", err.Error())
