@@ -57,6 +57,14 @@ func NewCssSpanArrayWeight(size int, weight Weight) []SpanCss {
 	}
 	return array
 }
+// Returns a CssSpanArray of the specified size and sets color, style, and weight the same
+func NewCssSpanArrayCSW(size int, c Color, s Style, w Weight) []SpanCss {
+	var array []SpanCss
+	for i := 0; i < size; i++ {
+		array = append(array, NewSpanCss(CssClassName(c,s,w)))
+	}
+	return array
+}
 func NewSpanCss(name string) SpanCss {
 	return SpanCss{name,"black", "normal", "normal"}
 }

@@ -172,34 +172,67 @@ func (p Command) Generic(class string, a []string, f []css.SpanCss) string {
 	return ""
 }
 
-// Liturgical template command
+// Liturgical template command for Actor
 func (p Command) Actor(a ...string) string {
-	// TODO: this should only accept a single a
+	// TODO: this should only accept a single parameter.
+	// But, we can't change the call signature since it attaches to Command.
 	fmtArray := css.NewCssSpanArray(len(a))
 	fmtArray[0].Set(css.RED, css.NORMALStyle, css.NORMALWeight)
 	return p.Generic("Actor", a, fmtArray)
 }
-
-// Liturgical template command
-func (p Command) Dialog(a ...string) string {
-	fmtArray := css.NewCssSpanArray(len(a))
-	return p.Generic("Dialog", a, fmtArray)
-}
-
-// Liturgical template command
-func (p Command) DialogP(a ...string) string {
-	fmtArray := css.NewCssSpanArrayStyle(len(a), css.ITALIC)
-	return p.Generic("DialogP", a, fmtArray)
-}
-
-// Liturgical template command
+// Liturgical template command for ActorDialog
 func (p Command) ActorDialog(a ...string) string {
 	fmtArray := css.NewCssSpanArray(len(a))
 	fmtArray[0].Set(css.RED, css.NORMALStyle, css.NORMALWeight)
 	return p.Generic("ActorDialog", a, fmtArray)
 }
+// Liturgical template command for ActorRubric
+func (p Command) ActorRubric(a ...string) string {
+	fmtArray := css.NewCssSpanArrayCSW(len(a), css.RED, css.NORMALStyle, css.NORMALWeight)
+	fmtArray[0].Set(css.BLACK, css.NORMALStyle, css.NORMALWeight)
+	return p.Generic("ActorRubric", a, fmtArray)
+}
+// Liturgical template command for Designation
+func (p Command) Designation(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	for i := 0; i < len(a); i++ {
+		fmtArray[i].Set(css.RED, css.ITALIC, css.NORMALWeight)
+	}
+	return p.Generic("Designation", a, fmtArray)
+}
+// Liturgical template command for Dialog
+func (p Command) Dialog(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Dialog", a, fmtArray)
+}
 
-// Liturgical template command
+// Liturgical template command for DialogP
+func (p Command) DialogP(a ...string) string {
+	fmtArray := css.NewCssSpanArrayStyle(len(a), css.ITALIC)
+	return p.Generic("DialogP", a, fmtArray)
+}
+
+// Liturgical template command for Heirmos
+func (p Command) Heirmos(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Heirmos", a, fmtArray)
+}
+// Liturgical template command for Hymn
+func (p Command) Hymn(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Hymn", a, fmtArray)
+}
+// Liturgical template command for HymnLastLine
+func (p Command) HymnLastLine(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("HymnLastLine", a, fmtArray)
+}
+// Liturgical template command for Inaudible
+func (p Command) Inaudible(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Inaudible", a, fmtArray)
+}
+// Liturgical template command to Insert another template
 func (p Command) Insert(a ...string) string {
 	tmpl, err := template.ParseFiles(TemplateDir + "/" + a[0] + ".gohtml")
 	if err != nil {
@@ -208,6 +241,41 @@ func (p Command) Insert(a ...string) string {
 	var rows bytes.Buffer
 	tmpl.Execute(&rows, Command("insert"))
 	return ""
+}
+// Liturgical template command for Melody
+func (p Command) Melody(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Melody", a, fmtArray)
+}
+// Liturgical template command for Mixed
+func (p Command) Mixed(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Mixed", a, fmtArray)
+}
+// Liturgical template command for Mode
+func (p Command) Mode(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Mode", a, fmtArray)
+}
+// Liturgical template command for Reading
+func (p Command) Reading(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Reading", a, fmtArray)
+}
+// Liturgical template command for Rubric
+func (p Command) Rubric(a ...string) string {
+	fmtArray := css.NewCssSpanArrayCSW(len(a), css.RED, css.NORMALStyle, css.NORMALWeight)
+	return p.Generic("Reading", a, fmtArray)
+}
+// Liturgical template command for Title
+func (p Command) Title(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Title", a, fmtArray)
+}
+// Liturgical template command for Verse
+func (p Command) Verse(a ...string) string {
+	fmtArray := css.NewCssSpanArray(len(a))
+	return p.Generic("Verse", a, fmtArray)
 }
 
 // Liturgical template command to temporarily override

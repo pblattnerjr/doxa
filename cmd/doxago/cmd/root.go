@@ -84,7 +84,7 @@ func init() {
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	homeDir := homeDir()
-	DOXAHOME = path.Join(homeDir,"doxa2")
+	DOXAHOME = path.Join(homeDir,"doxa")
 
 	// if the DOXA home does not exist, initialize it
 	if _, err := os.Stat(DOXAHOME); os.IsNotExist(err) {
