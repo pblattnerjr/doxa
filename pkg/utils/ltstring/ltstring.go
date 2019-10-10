@@ -1,4 +1,6 @@
 // Provides string utilities for liturgical text processing
+// The package is essentially a string package, but has
+// lt as a prefix to avoid name collisions.
 package ltstring
 
 import (

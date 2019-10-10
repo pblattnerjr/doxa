@@ -37,7 +37,7 @@ var ReadSuffix = `
 COMMIT;`
 
 // Schema to create Ltext
-var LtextSchema = `CREATE TABLE ltext (
+var LtextSchema = `CREATE TABLE IF NOT EXISTS ltext (
     id       TEXT PRIMARY KEY,
     topic    TEXT,
     key      TEXT,
@@ -202,7 +202,8 @@ func (l *Ltext) DeleteRecord(db *sqlx.DB) error {
 }
 
 func (l *Ltext) CreateRecord(db *sqlx.DB) error {
-	return errors.New("not implemented")
+	_, err := db.Exec(LtextSQLInsert, l.ID, l.Topic, l.Key, l.Value, l.NNP, l.NWP, l.Comment, l.Redirect)
+	return err
 }
 // GetRecordsByTopicKey returns records whose ID ends with the requested topic and key.
 // If includeEmptyValue = true, then if the record's value field is empty, it will still be returned.

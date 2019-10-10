@@ -1,4 +1,6 @@
 // file utilities for processing liturgical texts
+// The package is essentially a file package, but has
+// lt as a prefix to avoid name collisions.
 package ltfile
 
 import (
@@ -102,10 +104,4 @@ func FileMatcher(dir, extension string, expressions []string) ([]string, error) 
 	return result, err
 }
 
-func getWalkFunc(patterns []*regexp.Regexp) filepath.WalkFunc {
-	return func(path string, fileInfo os.FileInfo, err error) error {
-		// ...do something with service...
-		return nil
-	}
-}
 
