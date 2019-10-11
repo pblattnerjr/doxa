@@ -9,8 +9,10 @@ import (
 	"html/template"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 )
 
 // FileExists returns true if final segment of the path exists and is not a directory.
@@ -103,5 +105,11 @@ func FileMatcher(dir, extension string, expressions []string) ([]string, error) 
 		})
 	return result, err
 }
-
-
+// Returns the directory within which the caller is executing
+// This is just an example.  It must exist as a function in
+// the desired package.
+func executionDir() string {
+	_, filename, _, _ := runtime.Caller(0)
+	dir, _ := path.Split(filename)
+	return dir
+}

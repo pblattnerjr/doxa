@@ -185,9 +185,6 @@ func LineParts2Ltext (out chan<- Ltext, in <-chan ares.LineParts) {
 func (l *Ltext) GetRecord(db *sqlx.DB) error {
 	row := db.QueryRow(LtextSQLReadWhereIdLike, l.ID)
 	err := row.Scan(&l.ID, &l.Value)
-	if err != nil {
-		return err
-	}
 	return err
 }
 

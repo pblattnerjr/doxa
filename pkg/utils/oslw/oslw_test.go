@@ -2,8 +2,26 @@ package oslw
 
 import (
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"path"
+	"runtime"
 	"testing"
 )
+
+var logger log.Logger
+var logFile *os.File
+
+func init() {
+	logFile, err := os.OpenFile("test.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		panic(err)
+	}
+	mw := io.MultiWriter(os.Stdout, logFile)
+	logger.SetFlags(log.Ldate + log.Ltime + log.Lshortfile)
+	logger.SetOutput(mw)
+}
 
 func TestParseOslwResource(t *testing.T) {
 	var id = "\\itId{en}{uk}{lash}{actors}{Bishop}{"
@@ -28,12 +46,20 @@ func TestParseOslwResource(t *testing.T) {
 		t.Error(fmt.Sprintf("expected value = 'Bishop', but got %s", lineParts.Value))
 	}
 }
-// TODO: how to use a path relative to the test case
 func TestLoadOslwResources(t *testing.T) {
-	dir := "/Users/mac002/git/liturgika/doxa/pkg/utils/oslw/test"
-	dbName := "/Users/mac002/git/liturgika/doxa/pkg/utils/oslw/test/test.db"
-	err := LoadOslwResources(dir, dbName)
+	_, filename, _, _ := runtime.Caller(0)
+	fmt.Println(filename)
+	dir, _ := path.Split(filename)
+	dir = path.Join(dir,"test")
+	dbName := path.Join(dir,"test.db")
+	err := LoadOslwResources(dir, dbName, &logger)
 	if err != nil {
 		t.Error(err.Error())
 	}
+}
+// Returns the directory within which the caller is executing
+func executionDir() string {
+	_, filename, _, _ := runtime.Caller(0)
+	dir, _ := path.Split(filename)
+	return dir
 }

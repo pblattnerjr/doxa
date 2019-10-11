@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/liturgiko/doxa/pkg/config"
 	"github.com/liturgiko/doxa/pkg/db/lsql"
+	"github.com/liturgiko/doxa/pkg/utils/oslw"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
@@ -40,8 +41,12 @@ var (
 	loadAres bool
 	loadJson bool
 	loadCvs  bool
+	loadOslwResources  bool
+	loadOslwTemplates  bool
 	ares = "ares"
 	cvs  = "cvs"
+	oslwResources = "oslwResources"
+	oslwTemplates = "oslwTemplates"
 	whatJson  = "json"
 )
 
@@ -159,6 +164,42 @@ the valid options at each point.
 			}
 		case loadCvs:
 		case loadJson:
+		case loadOslwResources:
+			switch {
+			case fromDir:
+				oslwPath := path.Join(Paths.ReposPath, "oslw")
+
+				msg = fmt.Sprintf("Reading from directory %s",oslwPath)
+				fmt.Println(msg)
+				Logger.Println(msg)
+				switch {
+				case toNeo:
+				case toSql:
+					// TODO: add oslw path to doxago.yaml and read value
+					err := oslw.LoadOslwResources(oslwPath, dbFilename, &Logger)
+					if err != nil {
+						fmt.Println(err.Error())
+					}
+					fmt.Printf("\nFinished loading ares files into %s.", dbFilename)
+					fmt.Printf("\nCheck %s to see if there were errors.\n", LogFilename)
+				}
+			case fromGithub:
+				switch {
+				case toSql:
+					err := lsql.Repos2Sqlite(repos, dbFilename, printProgress, &Logger)
+					if err != nil {
+						fmt.Println(err.Error())
+					}
+					fmt.Printf("\nFinished loading ares files into %s.", dbFilename)
+					fmt.Printf("\nCheck %s to see if there were errors.\n", LogFilename)
+				default:
+					fmt.Println("What to load into is not defined.  Exiting.")
+					os.Exit(1)
+				}
+			default:
+				fmt.Println("What to load from is not defined.  Exiting.")
+				os.Exit(1)
+			}
 		default:
 			fmt.Println("What to load is not defined.  Exiting.")
 			os.Exit(1)
@@ -205,15 +246,26 @@ func setFromArgs(args []string) (bool, bool, bool) {
 }
 func setWhatFromArg(arg string) bool {
 	switch arg {
-	case ares:
+	case ares: {
 		loadAres = true
 		return true
-	case cvs:
+	}
+	case cvs: {
 		loadCvs = true
 		return true
-	case whatJson:
+	}
+	case oslwResources: {
+		loadOslwResources = true
+		return true
+	}
+	case oslwTemplates: {
+		loadOslwTemplates = true
+		return true
+	}
+	case whatJson: {
 		loadJson = true
 		return true
+	}
 	}
 	return false
 }
@@ -250,6 +302,8 @@ l:
 		fmt.Println("a) ares")
 		fmt.Println("b) cvs")
 		fmt.Println("c) json")
+		fmt.Println("d) oslw resources")
+		fmt.Println("e) oslw templates")
 		fmt.Println("q) quit the command")
 		char, _, _ := reader.ReadRune()
 		switch char {
@@ -261,6 +315,12 @@ l:
 			break l
 		case 'c':
 			loadJson = true
+			break l
+		case 'd':
+			loadOslwResources = true
+			break l
+		case 'e':
+			loadOslwTemplates = true
 			break l
 		case 'q':
 			os.Exit(0)

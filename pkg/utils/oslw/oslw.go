@@ -53,8 +53,9 @@ func ParseOslwResource(id, value string) (ares.LineParts, error) {
 // Reads all resource files in specified directory
 // and writes them to a database opened for the specified
 // dbName
-func LoadOslwResources(dir string, dbName string) error {
+func LoadOslwResources(dir string, dbName string, logger *log.Logger) error {
 	var err error
+	var update = true // used to avoid updating record for gr_gr_cog if already exists
 
 	// open the database
 	var db *sqlx.DB
@@ -98,14 +99,22 @@ func LoadOslwResources(dir string, dbName string) error {
 				)
 				ltext.Topic = lineParts.Topic
 				ltext.Key = lineParts.Key
-				err = ltext.CreateRecord(db)
+				// TODO: wire this up to the command line load
+				update = true
+				if strings.HasPrefix(ltext.ID, "gr_gr_cog") {
+					err = ltext.GetRecord(db)
+					update = err != nil
+				}
+				if update {
+					err = ltext.CreateRecord(db)
+				}
 				if err != nil {
-					log.Println(err.Error())
+					logger.Println(err.Error())
 				}
 			} else if strings.HasPrefix(line,"\\itId") {
 				lineParts, err = ParseOslwResource(line, "")
 				if err != nil {
-					log.Println(err.Error())
+					logger.Println(err.Error())
 				}
 			} else {
 				lineParts.Value = line
