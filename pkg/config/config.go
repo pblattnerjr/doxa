@@ -126,6 +126,8 @@ github.repos.ares:
 - https://github.com/AGES-Initiatives/ages-alwb-library-lash.git
 - https://github.com/AGES-Initiatives/ages-alwb-scripture.git
 
+# OSLW repo (optional)
+github.repos.oslw: https://github.com/OCMC-Translation-Projects/service.book.ke.oak.git
 # glory is the index of which language to use to give glory.
 # The index starts with 0 (for Greek)
 glory: 0

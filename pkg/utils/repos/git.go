@@ -28,14 +28,14 @@ func DirPath(parentDir, theUrl string) (string, error) {
 // The directory will be created by the Clone function.
 // Be aware that the contents of the root directory will
 // be deleted if it already exists.
-func CloneRepos(path string, urls []string) error {
+func CloneRepos(path string, urls []string, deleteFirst bool) error {
 	_ = os.RemoveAll(path)
 	err := os.MkdirAll(path, os.ModePerm)
 	if err != nil {
 		return err
 	}
 	for _, url := range urls {
-		u, err := Clone(path, url)
+		u, err := Clone(path, url, deleteFirst)
 		fmt.Println(u)
 		if err != nil {
 			fmt.Println(err.Error())
@@ -61,7 +61,7 @@ func CloneConcurrently(path string, urls []string) error {
 
 	for _, url := range urls {
 		go func(path, url string) {
-			u, err := Clone(path, url)
+			u, err := Clone(path, url, false)
 			done <- u
 			errch <- err
 		}(path, url)
@@ -75,10 +75,16 @@ func CloneConcurrently(path string, urls []string) error {
 	return err
 }
 
-func Clone(path string, url string) (string, error) {
+func Clone(path string, url string, deleteFirst bool) (string, error) {
 	dirPath, err := DirPath(path, url)
 	if err != nil {
 		return url, err
+	}
+	if deleteFirst {
+		err = os.RemoveAll(dirPath)
+		if err != nil {
+			return url, err
+		}
 	}
 	_, err = git.PlainClone(dirPath, false, &git.CloneOptions{
 		URL: url,

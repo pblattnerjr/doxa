@@ -16,7 +16,7 @@ package cmd
 
 import (
 	"fmt"
-	repos2 "github.com/liturgiko/doxa/pkg/utils/repos"
+	"github.com/liturgiko/doxa/pkg/utils/repos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
@@ -52,20 +52,20 @@ it will first be deleted.
 		// get the flags
 		repoType, _ := cmd.Flags().GetString("repo")
 		useTestData, _ := cmd.Flags().GetBool("test")
-		var repos []string
+		var theRepos []string
 		flagRepo, _ := cmd.Flags().GetString("cloneUrl")
 		if flagRepo != "" {
-			repos = append(repos, flagRepo)
+			theRepos = append(theRepos, flagRepo)
 		} else {
 			if useTestData {
-					repos = viper.GetStringSlice("test.github.repos." + repoType)
+					theRepos = viper.GetStringSlice("test.github.repos." + repoType)
 			} else {
-				repos = viper.GetStringSlice("github.repos." + repoType)
+				theRepos = viper.GetStringSlice("github.repos." + repoType)
 			}
 		}
 		repoPath = filepath.Join(REPOPATH, repoType)
 
-		if len(repos) == 0 {
+		if len(theRepos) == 0 {
 			fmt.Printf("Repository list %s not found in config file\n", repoType)
 		}
 
@@ -73,7 +73,7 @@ it will first be deleted.
 		fmt.Println(msg)
 		Logger.Println(msg)
 
-		if err = repos2.CloneConcurrently(repoPath, repos); err != nil {
+		if err = repos.CloneConcurrently(repoPath, theRepos); err != nil {
 			Logger.Println(err.Error())
 		}
 		Elapsed(start)

@@ -25,6 +25,7 @@ import (
 	"github.com/liturgiko/doxa/pkg/config"
 	"github.com/liturgiko/doxa/pkg/db/lsql"
 	"github.com/liturgiko/doxa/pkg/utils/oslw"
+	"github.com/liturgiko/doxa/pkg/utils/repos"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
@@ -38,16 +39,16 @@ var dbFilename = "liturgical.db"
 
 // vars for 'load' flags
 var (
-	loadAres bool
-	loadJson bool
-	loadCvs  bool
-	loadOslwResources  bool
-	loadOslwTemplates  bool
-	ares = "ares"
-	cvs  = "cvs"
-	oslwResources = "oslwResources"
-	oslwTemplates = "oslwTemplates"
-	whatJson  = "json"
+	loadAres   bool
+	loadJson   bool
+	loadCvs    bool
+	loadTexRes bool
+	loadTexTmp bool
+	ares       = "ares"
+	cvs        = "cvs"
+	texRes     = "OSLW Resources"
+	texTmp     = "OSLW Templates"
+	whatJson   = "json"
 )
 
 // vars for 'from' flags
@@ -103,15 +104,15 @@ the valid options at each point.
 		// get the flags
 		printProgress, _ := cmd.Flags().GetBool("verbose")
 		useTestData, _ := cmd.Flags().GetBool("test")
-		var repos []string
+		var theRepos []string
 		flagRepo, _ := cmd.Flags().GetString("cloneUrl")
 		if flagRepo != "" {
-			repos = append(repos, flagRepo)
+			theRepos = append(theRepos, flagRepo)
 		} else {
 			if useTestData {
-				repos = viper.GetStringSlice("test.github.repos.ares")
+				theRepos = viper.GetStringSlice("test.github.repos.ares")
 			} else {
-				repos = viper.GetStringSlice("github.repos.ares")
+				theRepos = viper.GetStringSlice("github.repos.ares")
 			}
 		}
 		aresPath := path.Join(Paths.ReposPath, "ares")
@@ -147,7 +148,7 @@ the valid options at each point.
 				switch {
 				case toNeo:
 				case toSql:
-					err := lsql.Repos2Sqlite(repos, dbFilename, printProgress, &Logger)
+					err := lsql.Repos2Sqlite(theRepos, dbFilename, printProgress, &Logger)
 					if err != nil {
 						fmt.Println(err.Error())
 					}
@@ -164,29 +165,33 @@ the valid options at each point.
 			}
 		case loadCvs:
 		case loadJson:
-		case loadOslwResources:
+		case loadTexRes:
+			oslwCloneUrl := viper.GetString("github.repo.oslw")
+			if len(oslwCloneUrl) == 0 {
+				fmt.Println("Could not find OSLW clone url in .doxago.yaml")
+				os.Exit(1)
+			}
 			switch {
 			case fromDir:
 				oslwPath := path.Join(Paths.ReposPath, "oslw")
-
 				msg = fmt.Sprintf("Reading from directory %s",oslwPath)
+				_, err := repos.Clone(oslwPath, oslwCloneUrl, true)
 				fmt.Println(msg)
 				Logger.Println(msg)
 				switch {
 				case toNeo:
 				case toSql:
-					// TODO: add oslw path to doxago.yaml and read value
-					err := oslw.LoadOslwResources(oslwPath, dbFilename, &Logger)
+					err = oslw.LoadOslwResources(oslwPath, dbFilename, &Logger)
 					if err != nil {
 						fmt.Println(err.Error())
 					}
-					fmt.Printf("\nFinished loading ares files into %s.", dbFilename)
+					fmt.Printf("\nFinished loading OSLW resources into %s.", dbFilename)
 					fmt.Printf("\nCheck %s to see if there were errors.\n", LogFilename)
 				}
 			case fromGithub:
 				switch {
 				case toSql:
-					err := lsql.Repos2Sqlite(repos, dbFilename, printProgress, &Logger)
+					err := lsql.Repos2Sqlite(theRepos, dbFilename, printProgress, &Logger)
 					if err != nil {
 						fmt.Println(err.Error())
 					}
@@ -254,12 +259,8 @@ func setWhatFromArg(arg string) bool {
 		loadCvs = true
 		return true
 	}
-	case oslwResources: {
-		loadOslwResources = true
-		return true
-	}
-	case oslwTemplates: {
-		loadOslwTemplates = true
+	case texRes: {
+		loadTexRes = true
 		return true
 	}
 	case whatJson: {
@@ -317,10 +318,10 @@ l:
 			loadJson = true
 			break l
 		case 'd':
-			loadOslwResources = true
+			loadTexRes = true
 			break l
 		case 'e':
-			loadOslwTemplates = true
+			loadTexTmp = true
 			break l
 		case 'q':
 			os.Exit(0)
@@ -388,6 +389,10 @@ func loadWhat() string {
 		return cvs
 	case loadJson:
 		return whatJson
+	case loadTexRes:
+		return texRes
+	case loadTexTmp:
+		return texTmp
 	default:
 		return "unknown"
 	}
