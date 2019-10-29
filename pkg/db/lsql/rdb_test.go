@@ -24,7 +24,7 @@ func init() {
 // Test process Git repos
 func TestRepos2Sqlite(t *testing.T) {
 	repos := []string{"https://github.com/liturgiko/testrepo1.git","https://github.com/liturgiko/testrepo2.git"}
-	err := Repos2Sqlite(repos, "test.db", true, &logger)
+	err := AresGithub2Sqlite(repos, "test.db", true, &logger)
 	if err != nil {
 		t.Error("error:", err.Error())
 	}

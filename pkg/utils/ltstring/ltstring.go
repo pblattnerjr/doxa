@@ -35,7 +35,7 @@ func ToId(lang string, country string, realm string, topic string, key string) s
 	return ToDomain(lang, country, realm) + "~" + topic + "~" + key
 }
 
-// Create canonical OLW domain from parts
+// Create canonical OLW domain (aka library) from parts
 func ToDomain(language string, country string, realm string) string {
 	return strings.ToLower(language + "_" + country + "_" + realm)
 }

@@ -5,10 +5,10 @@ package oslw
 
 import (
 	"bufio"
+	"database/sql"
 	"errors"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"github.com/jmoiron/sqlx"
-	"github.com/liturgiko/doxa/pkg/db/lsql"
+	"github.com/liturgiko/doxa/pkg/db/ltx2sql"
 	"github.com/liturgiko/doxa/pkg/models"
 	"github.com/liturgiko/doxa/pkg/utils/ares"
 	"github.com/liturgiko/doxa/pkg/utils/ltfile"
@@ -50,24 +50,32 @@ func ParseOslwResource(id, value string) (ares.LineParts, error) {
 	return result, err
 }
 
-// Reads all resource files in specified directory
+// Reads all OSLW resource files in specified directory
 // and writes them to a database opened for the specified
 // dbName
-func LoadOslwResources(dir string, dbName string, logger *log.Logger) error {
+func Res2Sql(dir string, dbName string, logger *log.Logger) error {
 	var err error
 	var update = true // used to avoid updating record for gr_gr_cog if already exists
 
-	// open the database
-	var db *sqlx.DB
-	db, err = sqlx.Open("sqlite3", dbName)
+	// prepare the database
+	var db *sql.DB
+	mapper := &ltx2sql.Mapper{}
+	db, err = sql.Open("sqlite3", dbName)
+	if err!= nil {
+		return err
+	}
+	defer db.Close()
+	err = db.Ping()
 	if err != nil {
 		return err
 	}
-	err = lsql.CreateSchema(models.LtextSchema, dbName)
-	if err != nil {
+	_, err = db.Exec(ltx2sql.SQLCreateTable)
+	if err!= nil {
 		return err
 	}
+	mapper.DB = db
 
+	// process the files
 	ext := "tex"
 	patterns := []string{
 		"res.*",
@@ -89,24 +97,23 @@ func LoadOslwResources(dir string, dbName string, logger *log.Logger) error {
 			line := strings.TrimSpace(scanner.Text())
 			if line == "}%" {
 				// write to db
-				var ltext models.Ltext
-				ltext.ID = ltstring.ToId(
+				var ltx models.Ltx
+				ltx.ID = ltstring.ToId(
 					lineParts.Language,
 					lineParts.Country,
 					lineParts.Realm,
 					lineParts.Topic,
 					lineParts.Key,
 				)
-				ltext.Topic = lineParts.Topic
-				ltext.Key = lineParts.Key
-				// TODO: wire this up to the command line load
+				ltx.Topic = lineParts.Topic
+				ltx.Key = lineParts.Key
 				update = true
-				if strings.HasPrefix(ltext.ID, "gr_gr_cog") {
-					err = ltext.GetRecord(db)
+				if strings.HasPrefix(ltx.ID, "gr_gr_cog") {
+					_, err = mapper.ReadById(ltx.ID)
 					update = err != nil
 				}
 				if update {
-					err = ltext.CreateRecord(db)
+					err = mapper.Create(&ltx)
 				}
 				if err != nil {
 					logger.Println(err.Error())

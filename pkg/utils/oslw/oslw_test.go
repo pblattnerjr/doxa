@@ -52,7 +52,7 @@ func TestLoadOslwResources(t *testing.T) {
 	dir, _ := path.Split(filename)
 	dir = path.Join(dir,"test")
 	dbName := path.Join(dir,"test.db")
-	err := LoadOslwResources(dir, dbName, &logger)
+	err := Res2Sql(dir, dbName, &logger)
 	if err != nil {
 		t.Error(err.Error())
 	}

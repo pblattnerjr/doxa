@@ -137,7 +137,7 @@ the valid options at each point.
 				switch {
 				case toNeo:
 				case toSql:
-					err := lsql.LocalAres2Sqlite(aresPath, dbFilename, printProgress, &Logger)
+					err := lsql.AresDir2Sqlite(aresPath, dbFilename, printProgress, &Logger)
 					if err != nil {
 						fmt.Println(err.Error())
 					}
@@ -148,7 +148,7 @@ the valid options at each point.
 				switch {
 				case toNeo:
 				case toSql:
-					err := lsql.Repos2Sqlite(theRepos, dbFilename, printProgress, &Logger)
+					err := lsql.AresGithub2Sqlite(theRepos, dbFilename, printProgress, &Logger)
 					if err != nil {
 						fmt.Println(err.Error())
 					}
@@ -166,22 +166,16 @@ the valid options at each point.
 		case loadCvs:
 		case loadJson:
 		case loadTexRes:
-			oslwCloneUrl := viper.GetString("github.repo.oslw")
-			if len(oslwCloneUrl) == 0 {
-				fmt.Println("Could not find OSLW clone url in .doxago.yaml")
-				os.Exit(1)
-			}
+			oslwPath := path.Join(Paths.ReposPath, "oslw")
 			switch {
 			case fromDir:
-				oslwPath := path.Join(Paths.ReposPath, "oslw")
 				msg = fmt.Sprintf("Reading from directory %s",oslwPath)
-				_, err := repos.Clone(oslwPath, oslwCloneUrl, true)
 				fmt.Println(msg)
 				Logger.Println(msg)
 				switch {
 				case toNeo:
 				case toSql:
-					err = oslw.LoadOslwResources(oslwPath, dbFilename, &Logger)
+					err = oslw.Res2Sql(oslwPath, dbFilename, &Logger)
 					if err != nil {
 						fmt.Println(err.Error())
 					}
@@ -189,9 +183,16 @@ the valid options at each point.
 					fmt.Printf("\nCheck %s to see if there were errors.\n", LogFilename)
 				}
 			case fromGithub:
+				oslwCloneUrl := viper.GetString("github.repos.oslw")
+				if len(oslwCloneUrl) == 0 {
+					fmt.Println("Could not find OSLW clone url in .doxago.yaml")
+					os.Exit(1)
+				}
+				_, err := repos.Clone(oslwPath, oslwCloneUrl, true)
 				switch {
 				case toSql:
-					err := lsql.Repos2Sqlite(theRepos, dbFilename, printProgress, &Logger)
+					// TODO: can't call Reps2Sqlite for 2 reasons: 1) oslwCloneUrl is not an array; 2) that function expects ares.
+					err := lsql.AresGithub2Sqlite(theRepos, dbFilename, printProgress, &Logger)
 					if err != nil {
 						fmt.Println(err.Error())
 					}

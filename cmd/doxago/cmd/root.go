@@ -177,7 +177,7 @@ func initializeDb(db string) {
 	repos := viper.GetStringSlice("github.repos.ares")
 	fmt.Println("loading ares files from Github to sql database")
 	fmt.Println(fmt.Sprintf("DB file is: %s", db))
-	err = lsql.Repos2Sqlite(repos, db, true, &Logger)
+	err = lsql.AresGithub2Sqlite(repos, db, true, &Logger)
 	if err != nil {
 		fmt.Println(err.Error())
 	}

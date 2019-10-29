@@ -135,17 +135,17 @@ func (p Command) Generic(class string, a []string, f []css.SpanCss) string {
 			}
 			id := domain + "~" + tk
 			hasError := false
-			ltext, err := GetRecord(id)
+			ltx, err := GetRecord(id)
 			if err != nil {
 				hasError = true
 				msg := err.Error()
 				if strings.HasPrefix(msg, "sql: no rows") {
-					ltext.Value = fmt.Sprintf("No record exists in database for ID %s.", id)
+					ltx.Value = fmt.Sprintf("No record exists in database for ID %s.", id)
 				} else {
-					ltext.Value = fmt.Sprintf("Bad ID %s. %s", id, err.Error())
+					ltx.Value = fmt.Sprintf("Bad ID %s. %s", id, err.Error())
 				}
 			}
-			sb.WriteString(ltext.Value)
+			sb.WriteString(ltx.Value)
 
 			// if the cell class is an actor, we want a colon after the actor, e.g. PRIEST:
 			if strings.HasPrefix(cell.Class, "Actor") && len(class) > 5 && i == 0 {
@@ -284,18 +284,18 @@ func (p Command) SetMCDay(d int) {
 	DocProps.Ldp.OverrideMovableCycleDay(d)
 }
 
-// stores the Ltext records that have already been retrieved from the database so we do not do another call to the db.
-var Retrieved map[string]models.Ltext
+// stores the Ltx records that have already been retrieved from the database so we do not do another call to the db.
+var Retrieved map[string]models.Ltx
 
 // get the record with the specified id.  If it has been already retrieved from the database
 // we will get it from the retrieved map.  Otherwise, we will read it from the database.
-func GetRecord(id string) (models.Ltext, error) {
-	if ltext, ok := Retrieved[id]; ok {
-		return ltext, nil
+func GetRecord(id string) (models.Ltx, error) {
+	if ltx, ok := Retrieved[id]; ok {
+		return ltx, nil
 	} else {
-		ltext = models.Ltext{}
-		err := Db.Get(&ltext, "SELECT * FROM ltext WHERE id=$1", id)
-		return ltext, err
+		ltx = models.Ltx{}
+		err := Db.Get(&ltx, "SELECT * FROM ltx WHERE id=$1", id)
+		return ltx, err
 	}
 }
 

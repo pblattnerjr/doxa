@@ -1,9 +1,13 @@
 package models
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // The unique identifier for a record
-// which consists of a domain, topic, and key.
+// which consists of a domain (aka library), topic, and key.
 type Id struct {
 	Domain
 	Topic string
@@ -18,5 +22,14 @@ func (i Id) ToNeoId() string {
 func (i Id) ToNeoAresFilename() string {
 	return fmt.Sprintf("%s_%s.ares", i.Topic, i.Domain.ToAres())
 }
+// Parses a tilde delimited id into its parts: domain (aka library), topic, and key
+func (i Id) Parse(id string) error {
+	var err error
+	parts := strings.Split(id, "~")
+	if len(parts) != 3 {
+		return errors.New(fmt.Sprintf("Parse %s: %v", id, err.Error()))
+	}
 
+	return err
+}
 

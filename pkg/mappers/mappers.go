@@ -7,34 +7,34 @@ import (
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
 )
 
-// Converts a stream of LineParts into Ltext structs
-func Lp2Lt(in <-chan *ares.LineParts) <-chan *models.Ltext {
-	out := make(chan *models.Ltext)
+// Converts a stream of LineParts into Ltx structs
+func Lp2Lt(in <-chan *ares.LineParts) <-chan *models.Ltx {
+	out := make(chan *models.Ltx)
 	go func() {
 		for lineParts := range in {
-			var ltext models.Ltext
-			ltext.ID = ltstring.ToId(
+			var ltx models.Ltx
+			ltx.ID = ltstring.ToId(
 				lineParts.Language,
 				lineParts.Country,
 				lineParts.Realm,
 				lineParts.Topic,
 				lineParts.Key,
 			)
-			ltext.Topic = lineParts.Topic
-			ltext.Key = lineParts.Key
+			ltx.Topic = lineParts.Topic
+			ltx.Key = lineParts.Key
 
 			if lineParts.HasValue {
-				ltext.Value = lineParts.Value
-				ltext.NWP = ltstring.ToNwp(lineParts.Value)
-				ltext.NNP = ltstring.ToNnp(ltext.NWP)
+				ltx.Value = lineParts.Value
+				ltx.NWP = ltstring.ToNwp(lineParts.Value)
+				ltx.NNP = ltstring.ToNnp(ltx.NWP)
 			}
 			if lineParts.HasComment {
-				ltext.Comment = lineParts.Comment
+				ltx.Comment = lineParts.Comment
 			}
 			if lineParts.IsRedirect {
-				ltext.Redirect = lineParts.Redirect
+				ltx.Redirect = lineParts.Redirect
 			}
-			out <- &ltext
+			out <- &ltx
 		}
 		close(out)
 	}()

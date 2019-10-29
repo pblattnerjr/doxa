@@ -10,7 +10,7 @@ import (
 
 // Test that combines two channels as a pipeline:
 // First we use R2Lp to map the lines in files in Github repositories to LineParts,
-// then we map lineparts to Ltext structs.
+// then we map lineparts to Ltx structs.
 func TestLp2Lt(t *testing.T) {
 	var logger log.Logger
 	var logFile *os.File

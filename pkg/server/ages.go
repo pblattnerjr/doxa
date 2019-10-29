@@ -86,11 +86,11 @@ func IDHandler(w http.ResponseWriter, r *http.Request) {
 	id = append(id, vars["topic"])
 	id = append(id, vars["key"])
 
-	var rec models.Ltext
+	var rec models.Ltx
 	rec.ID = strings.Join(id, "~")
-	err := rec.GetRecord(db)
+	err := rec.Read(db)
 	if err == nil {
-		recs := models.NewLtextArray()
+		recs := models.NewLtxArray()
 		recs.Append(&rec)
 		t.Execute(w, recs)
 	} else {
@@ -104,11 +104,11 @@ func IDHandler(w http.ResponseWriter, r *http.Request) {
 func TKHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("charset", "utf-8")
-	recs := models.NewLtextArray()
+	recs := models.NewLtxArray()
 	vars := mux.Vars(r)
 	includeEmpty := isTrue(vars["empty"])
 
-	err := recs.GetRecordsByTopicKey(db, vars["topic"], vars["key"], includeEmpty)
+	err := recs.ReadByTopicKey(db, vars["topic"], vars["key"], includeEmpty)
 	if err == nil {
 		t.Execute(w, recs)
 	} else {
@@ -120,12 +120,12 @@ func TKHandler(w http.ResponseWriter, r *http.Request) {
 func TopicHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("charset", "utf-8")
-	recs := models.NewLtextArray()
+	recs := models.NewLtxArray()
 	vars := mux.Vars(r)
 
 	includeEmpty := isTrue(vars["empty"])
 
-	err := recs.GetRecordsByLibraryTopic(db, vars["library"], vars["topic"], includeEmpty)
+	err := recs.ReadByLibraryTopic(db, vars["library"], vars["topic"], includeEmpty)
 	if err == nil {
 		t.Execute(w, recs)
 	} else {

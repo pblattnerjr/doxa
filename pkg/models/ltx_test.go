@@ -2,16 +2,16 @@ package models
 
 import "testing"
 
-var sharedLtext Ltext
+var sharedLtex Ltx
 
 func init() {
-	sharedLtext.ID = "gr_gr_cog~actors~Priest"
-	sharedLtext.Value = "ΙΕΡΕΥΣ"
+	sharedLtex.ID = "gr_gr_cog~actors~Priest"
+	sharedLtex.Value = "ΙΕΡΕΥΣ"
 }
 
-// Test Ltext.ToId() for well formed ID
+// Test Ltx.ToId() for well formed ID
 // Happy Path (HP) test
-func TestLtextToAresHP(t *testing.T) {
+func TestLtxToAresHP(t *testing.T) {
 
 	var domain Domain
 	domain.Realm = "cog"
@@ -23,7 +23,7 @@ func TestLtextToAresHP(t *testing.T) {
 	id.Topic = "actors"
 	id.Key = "Priest"
 
-	testId, err := sharedLtext.ToId()
+	testId, err := sharedLtex.ToId()
 	if err != nil {
 		t.Error(err.Error())
 	}
