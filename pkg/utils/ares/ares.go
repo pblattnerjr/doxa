@@ -135,17 +135,27 @@ func ToRedirectId(value string) (string, error) {
 		return value, ErrRedirectInvalid
 	}
 }
+
 // CleanAres cleans Ares files by finding and fixing the following problems:
+//
 // When finds a value that starts with quote but does not end with one,
 // attempts to joint the next line to it, if the next line appears to be the
 // broken part (due to a line break)
+//
 // When finds a duplicate key, compares the values and keeps the key that has a value,
 // throwing away the key that does not.
 // If both have values, reports the problem in the log.
 // If only one has a value, deletes the key that does not have a value.
 // Implements F.2019.005
 func CleanAres(in, out string) error {
-	var err error
+	var (
+		lineCnt int
+		err   error
+		parts []string
+		line  string
+		line2 string
+		def   string
+	)
 	fileIn, err := os.Open(in)
 	if err != nil {
 		log.Fatal(err)
@@ -161,8 +171,39 @@ func CleanAres(in, out string) error {
 
 	scanner := bufio.NewScanner(fileIn)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		w.WriteString(line + "\n")
+		line = strings.TrimSpace(scanner.Text())
+		lineCnt++
+		
+		if len(line) == 0 || strings.HasPrefix(line,"//") {
+			w.WriteString(line + "\n")
+			continue
+		}
+		
+		parts = strings.Split(line,"=")
+		if len(parts) == 1 && parts[0] == "=" { // no "=" in the line, just write it out and go on
+			w.WriteString(line + "\n")
+		} else {
+			def = strings.TrimSpace(parts[1])
+			if strings.HasPrefix(def,"\"") { 				// right side starts with quote
+				if strings.HasSuffix(def,"\"") == false { 	// right side has no close quote
+					scanner.Scan()
+					line2 = strings.TrimSpace(scanner.Text())
+					lineCnt++
+					if strings.Contains(line2, "\"") { // This is the second part of the definition.
+						w.WriteString(line + " " + line2 + "\n")
+						continue
+					} else {
+						err = errors.New(fmt.Sprintf("%s %d %s: invalid def continuation %s",
+							             fileIn.Name(), lineCnt, line, line2)) //log error.
+							             break
+					}
+				} else { // trailing quote found, line OK
+					w.WriteString(line + "\n")
+				}
+			} else { // no starting quote, this is a redirect.
+				w.WriteString(line + "\n")
+			}
+		}
 	}
 	w.Flush()
 	return err
