@@ -167,7 +167,6 @@ func CleanAres(in, out string) error {
 	w.Flush()
 	return err
 }
-
 // GetAresErrors returns an array of errors found
 // in the specified ares file.  The errors will
 // be one of the error types defined in this package.

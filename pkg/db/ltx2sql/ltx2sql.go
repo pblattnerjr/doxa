@@ -6,7 +6,8 @@ There are four methods for reading by ID:
   one by library + topic + key, which is converted to an properly formatted ID.
   one by the beginning of the ID (i.e. library + topic)
   one by the end of the ID (i.e. topic + key).
-Values are saved  unmodified in the Ltx struct in the value property.
+The text value is saved in three forms, each with its own property (value, NNP, NWP).
+The text value is saved without change in the value property of the Ltx struct.
 A normalized version is saved in the NNP property with no punctuation (NP).
 Normalization converts the value to lowercase and removes accents.
 Another normalized version is saved in the NWP property, with punctuation (WP).
@@ -91,31 +92,31 @@ func (m *Mapper) ReadById(id string) (*models.Ltx, error) {
 }
 // Read (by library, topic, and key) returns a struct populated by reading the database table for the specified library, topic, and key
 func (m *Mapper) ReadByLTK(library, topic, key string) ([]*models.Ltx, error) {
-	return m.Query("id = $1", fmt.Sprintf("%s~%s~%s", library, topic, key))
+	return m.Query("id = $1", true, fmt.Sprintf("%s~%s~%s", library, topic, key))
 }
 // Read (by library and topic) returns a struct populated by reading the database table for the specified library and topic
-func (m *Mapper) ReadByLT(library, topic string) ([]*models.Ltx, error) {
-	return m.Query("id like $1", fmt.Sprintf("%s~%s~%%", library, topic))
+func (m *Mapper) ReadByLT(library, topic string, returnEmpty bool) ([]*models.Ltx, error) {
+	return m.Query("id like $1", returnEmpty, fmt.Sprintf("%s~%s~%%", library, topic))
 }
 // Read (by topic and key) returns a struct populated by reading the database table for the specified topic and key
-func (m *Mapper) ReadByTK(topic, key string) ([]*models.Ltx, error) {
-	return m.Query("id like $1", fmt.Sprintf("%%~%s~%s", topic, key))
+func (m *Mapper) ReadByTK(topic, key string, returnEmpty bool) ([]*models.Ltx, error) {
+	return m.Query("id like $1", returnEmpty, fmt.Sprintf("%%~%s~%s", topic, key))
 }
 // Read (by value) returns a struct populated by reading the database table for the specified substring in the value column.
 // Note that the value property stores a text value unchanged.  This means it preserves punctuation and accents.
 // There are other methods (ReadByNNP and ReadByNWP) that provide a search against a normalized version of the value.
 func (m *Mapper) ReadByValue(substring string) ([]*models.Ltx, error) {
-	return m.Query("value like $1", fmt.Sprintf("%%%s%%", substring))
+	return m.Query("value like $1", true, fmt.Sprintf("%%%s%%", substring))
 }
 // Read (by NNP) returns a struct populated by reading the database table for the specified substring in the nnp column.
 // The NNP column is a normalized version of the value, converted to lower case, with accents removed. It has no punctuation (NP)
 func (m *Mapper) ReadByNNP(substring string) ([]*models.Ltx, error) {
-	return m.Query("nnp like $1", fmt.Sprintf("%%%s%%", substring))
+	return m.Query("nnp like $1", true, fmt.Sprintf("%%%s%%", substring))
 }
 // Read (by NWP) returns a struct populated by reading the database table for the specified substring in the nnp column.
 // The NWP column is a normalized version of the value, converted to lower case, with accents removed. But, it is with punctuation (WP).
 func (m *Mapper) ReadByNWP(substring string) ([]*models.Ltx, error) {
-	return m.Query("nwp like $1", fmt.Sprintf("%%%s%%", substring))
+	return m.Query("nwp like $1", true, fmt.Sprintf("%%%s%%", substring))
 }
 // Returns a struct, if found, populated by reading the database table using the c (condition) and interface values
 func (m *Mapper) QueryRow(c string, v ...interface{}) (*models.Ltx, error) {
@@ -134,7 +135,7 @@ func (m *Mapper) QueryRow(c string, v ...interface{}) (*models.Ltx, error) {
 	return u, nil
 }
 // Returns structs, if found, populated by reading the database table using the c (condition) and interface values
-func (m *Mapper) Query(c string, v ...interface{}) ([] *models.Ltx, error) {
+func (m *Mapper) Query(c string, returnEmpty bool, v ...interface{}) ([] *models.Ltx, error) {
 	var records []*models.Ltx
 
 	// TODO: need to modify the SQL to match the one in Ltx that does a join if redirect is populated
@@ -156,7 +157,13 @@ func (m *Mapper) Query(c string, v ...interface{}) ([] *models.Ltx, error) {
 			}
 			return nil, err
 		}
-		records = append(records, r)
+		if returnEmpty {
+			records = append(records, r)
+		} else {
+			if len(r.Value) > 0 {
+				records = append(records, r)
+			}
+		}
 	}
 	err = rows.Err()
 	return records, err

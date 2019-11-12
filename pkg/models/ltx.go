@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jmoiron/sqlx"
 	"github.com/liturgiko/doxa/pkg/utils/ares"
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
 	"log"
@@ -190,51 +189,15 @@ func LineParts2Ltx (out chan<- Ltx, in <-chan ares.LineParts) {
 
 }
 
-func (l *Ltx) Create(db *sqlx.DB) error {
-	_, err := db.Exec(LtxSQLInsert, l.ID, l.Topic, l.Key, l.Value, l.NNP, l.NWP, l.Comment, l.Redirect)
-	return err
-}
-func (l *Ltx) Read(db *sqlx.DB) error {
-	row := db.QueryRow(LtxSQLReadWhereIdLike, l.ID)
-	err := row.Scan(&l.ID, &l.Value)
-	return err
-}
 
-// Update updates the record with the values contained in the Struct.
-// If the record has a redirect, update the value of the redirect instead
-func (l *Ltx) Update(db *sqlx.DB) error {
-	return errors.New("not implemented")
-}
-
-func (l *Ltx) Delete(db *sqlx.DB) error {
-	return errors.New("not implemented")
-}
-// ReadByLibraryTopic loads the array with records whose ID starts with the requested library and topic.
-// If includeEmptyValue = true, then if the record's value field is empty, it will still be returned.
-// Otherwise it will be excluded from the results.
-func (l *LtxArray) ReadByLibraryTopic(db *sqlx.DB, library string, topic string, includeEmptyValue bool) error {
-	type Record struct {
-		id string `db:"id"`
-		value string `db:"value"`
-	}
-	var id []string
-	id = append(id, library)
-	id = append(id, topic)
-	id = append(id, "%")
-
-	like := strings.Join(id, "~")
-	if includeEmptyValue {
-		return db.Select(l, LtxSQLReadWhereIdLike, like)
-	} else {
-		return db.Select(l, LtxSQLReadWhereIdLikeValueNotBlank, like)
-	}
-}
 // SetValue sets the value, and the Normalized With Punctuation (NWP) and Normalized without Punctuation (NWP) properties.
 func (l *Ltx) SetValue(value string) {
 	l.Value = value
 	l.NWP = ltstring.ToNwp(value)
 	l.NNP = ltstring.ToNnp(value)
 }
+// NewLtx returns a new Ltx instance.  It normalizes the value so the
+// nnp and nwp properties are set correctly.
 func NewLtx(library, topic, key, value, comment, redirect string) *Ltx {
 	d := Domain{}
 	err := d.Parse(library)
@@ -255,26 +218,6 @@ func NewLtx(library, topic, key, value, comment, redirect string) *Ltx {
 	return &l
 }
 
-// ReadByTopicKey loads the array with records whose ID ends with the requested topic and key.
-// If includeEmptyValue = true, then if the record's value field is empty, it will still be returned.
-// Otherwise it will be excluded from the results.
-func (l *LtxArray) ReadByTopicKey(db *sqlx.DB, topic string, key string, includeEmptyValue bool) error {
-	type Record struct {
-		id string `db:"id"`
-		value string `db:"value"`
-	}
-	var id []string
-	id = append(id, "%")
-	id = append(id, topic)
-	id = append(id, key)
-
-	like := strings.Join(id, "~")
-	if includeEmptyValue {
-		return db.Select(l, LtxSQLReadWhereIdLike, like)
-	} else {
-		return db.Select(l, LtxSQLReadWhereIdLikeValueNotBlank, like)
-	}
-}
 func (l *LtxArray) Append(i *Ltx) {
 	*l = append(*l, *i)
 }

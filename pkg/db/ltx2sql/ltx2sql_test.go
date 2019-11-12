@@ -60,7 +60,7 @@ func TestMapper_Create(t *testing.T) {
 	if err != nil {
 		t.Error(fmt.Sprintf("Create %s: %v", s.ID, err))
 	}
-	records, err := mapper.ReadByLT(library, topic)
+	records, err := mapper.ReadByLT(library, topic, true)
 	if err != nil {
 		t.Error(fmt.Sprintf("ReadByLT %s~%s: %v", library, topic, err))
 	}
@@ -70,7 +70,7 @@ func TestMapper_Create(t *testing.T) {
 	if len(records) != 2 {
 		t.Error(fmt.Sprintf("ReadByLT %s~%s, expected 2, got: %v", library, topic, len(records)))
 	}
-	records, err = mapper.ReadByTK(topic, key)
+	records, err = mapper.ReadByTK(topic, key, true)
 	if err != nil {
 		t.Error(fmt.Sprintf("ReadByTK %s~%s: %v", topic, key, err))
 	}

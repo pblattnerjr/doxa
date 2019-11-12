@@ -1,0 +1,19 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DB Lookup</title>
+</head>
+<body>
+<table>
+    <tbody>
+    {{range .}}
+        <tr>
+            <td style="padding: 1em; border: 1px solid #cccccc;">{{.ID}}</td>
+            <td style="padding: 1em; border: 1px solid #cccccc;">{{.Value}}</td>
+        </tr>
+    {{end}}
+    <tbody>
+    </table>
+</body>
+</html>

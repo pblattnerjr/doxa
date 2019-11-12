@@ -189,6 +189,10 @@ the valid options at each point.
 					os.Exit(1)
 				}
 				_, err := repos.Clone(oslwPath, oslwCloneUrl, true)
+				if err != nil {
+					fmt.Println(fmt.Sprintf("Clone %s: %v", oslwCloneUrl, err))
+					os.Exit(1)
+				}
 				switch {
 				case toSql:
 					// TODO: can't call Reps2Sqlite for 2 reasons: 1) oslwCloneUrl is not an array; 2) that function expects ares.
