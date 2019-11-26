@@ -16,11 +16,11 @@ import (
 )
 
 var (
-	ErrFileMissingAres = errors.New("ares: file missing .ares extension")
-	ErrFileMissingTopic = errors.New("ares: filename missing topic or domain")
+	ErrFileMissingAres      = errors.New("ares: file missing .ares extension")
+	ErrFileMissingTopic     = errors.New("ares: filename missing topic or domain")
 	ErrLineMissingEqualSign = errors.New("ares: missing equal sign between key and value")
-	ErrRedirectInvalid = errors.New("ares: invalid redirect value")
-	ErrValueMissingQuote = errors.New("ares: value missing initial or final quote")
+	ErrRedirectInvalid      = errors.New("ares: invalid redirect value")
+	ErrValueMissingQuote    = errors.New("ares: value missing initial or final quote")
 )
 
 func NewErrLineMissingEqualSign(line int) error {
@@ -29,6 +29,7 @@ func NewErrLineMissingEqualSign(line int) error {
 func NewErrValueMissingQuote(line int) error {
 	return errors.New(fmt.Sprintf("line %d ares: value missing initial or final quote", line))
 }
+
 type LineParts struct {
 	Language       string
 	Country        string
@@ -150,11 +151,13 @@ func ToRedirectId(value string) (string, error) {
 func CleanAres(in, out string) error {
 	var (
 		lineCnt int
-		err   error
-		parts []string
-		line  string
-		line2 string
-		def   string
+		err     error
+		parts   []string
+		line    string
+		line2   string
+		aresKey string
+		aresDef string
+		found   bool
 	)
 	fileIn, err := os.Open(in)
 	if err != nil {
@@ -170,36 +173,49 @@ func CleanAres(in, out string) error {
 	w := bufio.NewWriter(fileOut)
 
 	scanner := bufio.NewScanner(fileIn)
+	definitions := make(map[string]string)
+
 	for scanner.Scan() {
 		line = strings.TrimSpace(scanner.Text())
 		lineCnt++
-		
-		if len(line) == 0 || strings.HasPrefix(line,"//") {
+
+		if len(line) == 0 || strings.HasPrefix(line, "//") {
 			w.WriteString(line + "\n")
 			continue
 		}
-		
-		parts = strings.Split(line,"=")
+
+		parts = strings.Split(line, "=")
 		if len(parts) == 1 && parts[0] == "=" { // no "=" in the line, just write it out and go on
 			w.WriteString(line + "\n")
 		} else {
-			def = strings.TrimSpace(parts[1])
-			if strings.HasPrefix(def,"\"") { 				// right side starts with quote
-				if strings.HasSuffix(def,"\"") == false { 	// right side has no close quote
+			aresKey = strings.TrimSpace(parts[0])
+			aresDef = strings.TrimSpace(parts[1])
+
+			if strings.HasPrefix(aresDef, "\"") { // right side starts with quote
+				if strings.HasSuffix(aresDef, "\"") == false { // right side has no close quote
 					scanner.Scan()
 					line2 = strings.TrimSpace(scanner.Text())
 					lineCnt++
 					if strings.Contains(line2, "\"") { // This is the second part of the definition.
-						w.WriteString(line + " " + line2 + "\n")
-						continue
+						aresDef = aresDef + " " + line2
 					} else {
 						err = errors.New(fmt.Sprintf("%s %d %s: invalid def continuation %s",
-							             fileIn.Name(), lineCnt, line, line2)) //log error.
-							             break
+							fileIn.Name(), lineCnt, line, line2)) //log error.
+						break
 					}
-				} else { // trailing quote found, line OK
-					w.WriteString(line + "\n")
 				}
+
+				if aresDef == "\"\"" { // quoted empty string, look for a previous definition
+					_, found = definitions[aresKey]
+					if found {
+						continue	// already defined
+					}
+				} else {
+					definitions[aresKey] = aresDef // save the definition
+				}
+
+				w.WriteString(aresKey + " = " + aresDef + "\n")
+
 			} else { // no starting quote, this is a redirect.
 				w.WriteString(line + "\n")
 			}
@@ -246,11 +262,11 @@ func GetAresErrors(in string) *[]error {
 			lineParts, err := ParseLine(fileNameParts, line)
 			lineParts.LineNbr = lineCnt
 			if len(lineParts.Key) > 0 && seenKey[lineParts.Key] {
-				result = append(result,errors.New(fmt.Sprintf("%s %d: duplicate key %s", file.Name(), lineCnt, lineParts.Key)))
+				result = append(result, errors.New(fmt.Sprintf("%s %d: duplicate key %s", file.Name(), lineCnt, lineParts.Key)))
 			} else {
 				seenKey[lineParts.Key] = true
 			}
-			if err != nil  {
+			if err != nil {
 				result = append(result, errors.New(fmt.Sprintf("%s %d: %s", file.Name(), lineCnt, err)))
 			}
 		}

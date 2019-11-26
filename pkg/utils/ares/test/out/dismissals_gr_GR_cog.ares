@@ -10,4 +10,3 @@ dis00.ascension = "Ὁ ἐν δόξῃ ἀναληφθεὶς ἀφ' ἡμῶν
 dis100 = prayers_gr_GR_cog.DiEfchonPateron.text
 dis101 = prayers_gr_GR_cog.DiEfchonDespotou.text
 // The following key is a duplicate.  Because the one before it has a value, this one should be removed.
-dis00.andresurrection = ""
