@@ -148,22 +148,86 @@ func ToRedirectId(value string) (string, error) {
 // If both have values, reports the problem in the log.
 // If only one has a value, deletes the key that does not have a value.
 // Implements F.2019.005
+
+const emptyString = "\"\""
+
+var lineCnt int
+var fileIn *os.File
+var fileOut *os.File
+
+func saveDefinition(k string, v string, c string,
+	definitions map[string]string, commentsForKey map[string]string, keys *[]string, fname string) bool {
+
+	var found bool
+	var err error
+	var msg string
+	var oldV string
+
+	oldV, found = definitions[k]
+
+	if found == false {
+		definitions[k] = v // new value
+		commentsForKey[k] = c
+	} else if definitions[k] == emptyString {
+		definitions[k] = v // substitute real value for placeholder
+		commentsForKey[k] = c
+	} else if v == emptyString {
+		err = errors.New(fmt.Sprintf("%s %d Invalid replacement of value %s for key %s with empty string",
+			fname, lineCnt, oldV, k))
+		log.Println(err)
+
+		if !alreadyDefined("//"+k, definitions) { // we need to create a place for the commented out key, too
+			*keys = append(*keys, "//"+k)
+
+			definitions["//"+k] = v    // save definition using commented out key
+			commentsForKey["//"+k] = c // save comments using commented out key
+		}
+	} else {
+		msg = fmt.Sprintf("%s %d Substituting value %s for key %s with old value %s",
+			fname, lineCnt, v, k, oldV)
+		log.Println(msg)
+		definitions[k] = v // updating value for key
+		commentsForKey[k] = c
+	}
+	return found
+}
+
+func alreadyDefined(k string, definitions map[string]string) bool {
+	var found bool
+	_, found = definitions[k]
+	return found
+}
+
+func hasComments(k string, commentsForKey map[string]string) bool {
+	var found bool
+	_, found = commentsForKey[k]
+	return found
+}
+
 func CleanAres(in, out string) error {
 	var (
-		lineCnt int
-		err     error
-		parts   []string
-		line    string
-		line2   string
-		aresKey string
-		aresDef string
-		found   bool
+		err            error
+		parts          []string
+		line           string
+		line2          string
+		aresKey        string
+		aresDef        string
+		keys           []string
+		comments       string
+		definitions    map[string]string
+		commentsForKey map[string]string
 	)
+
+	definitions = make(map[string]string)
+	commentsForKey = make(map[string]string)
+	comments = ""
+
 	fileIn, err := os.Open(in)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer fileIn.Close()
+	scanner := bufio.NewScanner(fileIn)
 
 	fileOut, err := os.Create(out)
 	if err != nil {
@@ -172,27 +236,42 @@ func CleanAres(in, out string) error {
 	defer fileOut.Close()
 	w := bufio.NewWriter(fileOut)
 
-	scanner := bufio.NewScanner(fileIn)
-	definitions := make(map[string]string)
-
+	//
+	// Phase 1 - scan the file creating a slice of keys to be written and
+	// a map of definitions index by the keys
+	//
 	for scanner.Scan() {
 		line = strings.TrimSpace(scanner.Text())
+		line = strings.TrimSpace(line) // ??? why
 		lineCnt++
 
+		//
+		// Append all blank or comment lines to the 'comments' variable
+		// to be associated with the next key
 		if len(line) == 0 || strings.HasPrefix(line, "//") {
-			w.WriteString(line + "\n")
+			comments = comments + line + "\n"
+			continue
+		}
+		if strings.HasPrefix(line, "/*") {
+			comments = comments + line + "\n"
+			continue
+		}
+		if strings.HasPrefix(line, "*/") || strings.HasSuffix(line, "*/") {
+			comments = comments + line + "\n"
 			continue
 		}
 
 		parts = strings.Split(line, "=")
-		if len(parts) == 1 && parts[0] == "=" { // no "=" in the line, just write it out and go on
-			w.WriteString(line + "\n")
-		} else {
+		if len(parts) == 1 && parts[0] == "=" { // no "=" in the line, just treat it like a comment
+			comments = comments + line + "\n"
+			continue
+		} else { // this is an assignment of some sort
 			aresKey = strings.TrimSpace(parts[0])
 			aresDef = strings.TrimSpace(parts[1])
 
 			if strings.HasPrefix(aresDef, "\"") { // right side starts with quote
-				if strings.HasSuffix(aresDef, "\"") == false { // right side has no close quote
+				// Special 2-line case with embedded newline
+				if !strings.HasSuffix(aresDef, "\"") { // right side has no close quote
 					scanner.Scan()
 					line2 = strings.TrimSpace(scanner.Text())
 					lineCnt++
@@ -201,25 +280,34 @@ func CleanAres(in, out string) error {
 					} else {
 						err = errors.New(fmt.Sprintf("%s %d %s: invalid def continuation %s",
 							fileIn.Name(), lineCnt, line, line2)) //log error.
+						log.Println(err)
 						break
 					}
 				}
-
-				if aresDef == "\"\"" { // quoted empty string, look for a previous definition
-					_, found = definitions[aresKey]
-					if found {
-						continue	// already defined
-					}
-				} else {
-					definitions[aresKey] = aresDef // save the definition
-				}
-
-				w.WriteString(aresKey + " = " + aresDef + "\n")
-
-			} else { // no starting quote, this is a redirect.
-				w.WriteString(line + "\n")
 			}
+
+			if !alreadyDefined(aresKey, definitions) { // add only the first time the key is encountered
+				keys = append(keys, aresKey)
+			}
+
+			saveDefinition(aresKey, aresDef, comments, definitions, commentsForKey, &keys, fileIn.Name())
+			comments = ""
 		}
+	}
+
+	//
+	// phase 2 - using the slice of keys, write out the keys and their definitions
+	//
+	lineCnt = 0 // reset to zero
+
+	for _, k := range keys {
+		if hasComments(k, commentsForKey) { // are there comments for the key to write out first?
+			w.WriteString(commentsForKey[k])
+		}
+		w.WriteString(k + " = " + definitions[k] + "\n")
+	}
+	if len(comments) > 0 {
+		w.WriteString(comments) // These lines were found at the end of the file (have no key).
 	}
 	w.Flush()
 	return err
