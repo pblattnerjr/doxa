@@ -59,7 +59,7 @@ func Res2Sql(dir string, dbName string, logger *log.Logger) error {
 
 	// prepare the database
 	var db *sql.DB
-	mapper := &ltx2sql.Mapper{}
+	mapper := &ltx2sql.LtxMapper{}
 	db, err = sql.Open("sqlite3", dbName)
 	if err!= nil {
 		return err

@@ -82,6 +82,6 @@ it will first be deleted.
 
 func init() {
 	rootCmd.AddCommand(cloneCmd)
-	cloneCmd.Flags().StringP("repo", "r", "site", "type of repositories to process, e.g. ares, site.")
+	cloneCmd.Flags().StringP("repo", "r", "site", "type of repositories to process, e.g. ares, site. For example, doxago clone -r ares")
 }
 

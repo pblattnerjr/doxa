@@ -12,4 +12,9 @@ func (s *server) routes() {
 
 	s.router.HandleFunc("/", s.handleHome()).Methods("GET")
 
+	// api version 1
+	s.api1.HandleFunc("/status", s.handleHomeV1())
+
+	// api version 2
+	s.api2.HandleFunc("/status", s.handleHomeV2())
 }

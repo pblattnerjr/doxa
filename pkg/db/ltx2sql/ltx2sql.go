@@ -26,7 +26,7 @@ import (
 )
 // TODO: the various functions in ltx and rdb that handle database transactions need to be moved here
 
-type Mapper struct {
+type LtxMapper struct {
 	DB *sql.DB
 }
 // SQL to create the table schema for the struct.  If the table exists,
@@ -53,16 +53,16 @@ var SQLMerge = `INSERT OR REPLACE INTO ltx (id, topic, key, value, nnp, nwp, com
 var SQLDelete = `DELETE ltx WHERE id = $1`
 
 // Database column names for the struct.  Must correspond to the Fields() interface below
-func (m *Mapper) Columns() string {
+func (m *LtxMapper) Columns() string {
 	return "id, topic, key, value, nnp, nwp, comment, redirect"
 }
 // Struct properties (fields).  Must correspond to the Columns() above
-func (m *Mapper) Fields(l *models.Ltx) []interface{} {
+func (m *LtxMapper) Fields(l *models.Ltx) []interface{} {
 	return []interface{}{&l.ID, &l.Topic, &l.Key, &l.Value, &l.NNP, &l.NWP, &l.Comment, &l.Redirect}
 }
 // TODO: test this function
 // BulkInsert uses a db transaction and commit to insert a stream of ltx into a database
-func (m *Mapper) BulkInsert(in <-chan *models.Ltx) error {
+func (m *LtxMapper) BulkInsert(in <-chan *models.Ltx) error {
 	var err error
 	tx, err := m.DB.Begin()
 	if err != nil {
@@ -82,44 +82,44 @@ func (m *Mapper) BulkInsert(in <-chan *models.Ltx) error {
 	return err
 }
 // Creates a row from the struct in the database table
-func (m *Mapper) Create(l *models.Ltx) error {
+func (m *LtxMapper) Create(l *models.Ltx) error {
 	_, err := m.DB.Exec(SQLMerge, l.ID, l.Topic, l.Key, l.Value, l.NNP, l.NWP, l.Comment, l.Redirect)
 	return err
 }
 // Read (by id) returns a struct populated by reading the database table for the specified id
-func (m *Mapper) ReadById(id string) (*models.Ltx, error) {
+func (m *LtxMapper) ReadById(id string) (*models.Ltx, error) {
 	return m.QueryRow("id = $1", id)
 }
 // Read (by library, topic, and key) returns a struct populated by reading the database table for the specified library, topic, and key
-func (m *Mapper) ReadByLTK(library, topic, key string) ([]*models.Ltx, error) {
+func (m *LtxMapper) ReadByLTK(library, topic, key string) ([]*models.Ltx, error) {
 	return m.Query("id = $1", true, fmt.Sprintf("%s~%s~%s", library, topic, key))
 }
 // Read (by library and topic) returns a struct populated by reading the database table for the specified library and topic
-func (m *Mapper) ReadByLT(library, topic string, returnEmpty bool) ([]*models.Ltx, error) {
+func (m *LtxMapper) ReadByLT(library, topic string, returnEmpty bool) ([]*models.Ltx, error) {
 	return m.Query("id like $1", returnEmpty, fmt.Sprintf("%s~%s~%%", library, topic))
 }
 // Read (by topic and key) returns a struct populated by reading the database table for the specified topic and key
-func (m *Mapper) ReadByTK(topic, key string, returnEmpty bool) ([]*models.Ltx, error) {
+func (m *LtxMapper) ReadByTK(topic, key string, returnEmpty bool) ([]*models.Ltx, error) {
 	return m.Query("id like $1", returnEmpty, fmt.Sprintf("%%~%s~%s", topic, key))
 }
 // Read (by value) returns a struct populated by reading the database table for the specified substring in the value column.
 // Note that the value property stores a text value unchanged.  This means it preserves punctuation and accents.
 // There are other methods (ReadByNNP and ReadByNWP) that provide a search against a normalized version of the value.
-func (m *Mapper) ReadByValue(substring string) ([]*models.Ltx, error) {
+func (m *LtxMapper) ReadByValue(substring string) ([]*models.Ltx, error) {
 	return m.Query("value like $1", true, fmt.Sprintf("%%%s%%", substring))
 }
 // Read (by NNP) returns a struct populated by reading the database table for the specified substring in the nnp column.
 // The NNP column is a normalized version of the value, converted to lower case, with accents removed. It has no punctuation (NP)
-func (m *Mapper) ReadByNNP(substring string) ([]*models.Ltx, error) {
+func (m *LtxMapper) ReadByNNP(substring string) ([]*models.Ltx, error) {
 	return m.Query("nnp like $1", true, fmt.Sprintf("%%%s%%", substring))
 }
 // Read (by NWP) returns a struct populated by reading the database table for the specified substring in the nnp column.
 // The NWP column is a normalized version of the value, converted to lower case, with accents removed. But, it is with punctuation (WP).
-func (m *Mapper) ReadByNWP(substring string) ([]*models.Ltx, error) {
+func (m *LtxMapper) ReadByNWP(substring string) ([]*models.Ltx, error) {
 	return m.Query("nwp like $1", true, fmt.Sprintf("%%%s%%", substring))
 }
 // Returns a struct, if found, populated by reading the database table using the c (condition) and interface values
-func (m *Mapper) QueryRow(c string, v ...interface{}) (*models.Ltx, error) {
+func (m *LtxMapper) QueryRow(c string, v ...interface{}) (*models.Ltx, error) {
 	// TODO: need to modify the SQL to match the one in Ltx that does a join if redirect is populated
 	u := &models.Ltx{}
 	err := m.DB.QueryRow(
@@ -135,7 +135,7 @@ func (m *Mapper) QueryRow(c string, v ...interface{}) (*models.Ltx, error) {
 	return u, nil
 }
 // Returns structs, if found, populated by reading the database table using the c (condition) and interface values
-func (m *Mapper) Query(c string, returnEmpty bool, v ...interface{}) ([] *models.Ltx, error) {
+func (m *LtxMapper) Query(c string, returnEmpty bool, v ...interface{}) ([] *models.Ltx, error) {
 	var records []*models.Ltx
 
 	// TODO: need to modify the SQL to match the one in Ltx that does a join if redirect is populated
@@ -169,7 +169,7 @@ func (m *Mapper) Query(c string, returnEmpty bool, v ...interface{}) ([] *models
 	return records, err
 }
 // Deletes a row from the struct in the database table for the specified id
-func (m *Mapper) Delete(id string) error {
+func (m *LtxMapper) Delete(id string) error {
 	_, err := m.DB.Exec(SQLDelete, id)
 	return err
 }

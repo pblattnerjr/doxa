@@ -45,7 +45,7 @@ func (s *server) handleID(files ...string) http.HandlerFunc {
 		id = append(id, vars["topic"])
 		id = append(id, vars["key"])
 
-		rec, err := s.mapper.ReadById(strings.Join(id, "~"))
+		rec, err := s.ltxMapper.ReadById(strings.Join(id, "~"))
 		if err == nil {
 			recs := models.NewLtxArray()
 			recs.Append(rec)
@@ -63,7 +63,7 @@ func (s *server) handleTK() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		w.Header().Set("charset", "utf-8")
 		vars := mux.Vars(r)
-		recs, err := s.mapper.ReadByTK(vars["topic"], vars["key"], false)
+		recs, err := s.ltxMapper.ReadByTK(vars["topic"], vars["key"], false)
 		if err == nil {
 			t.Execute(w, recs)
 		} else {
@@ -78,12 +78,23 @@ func (s *server) handleTopic() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		w.Header().Set("charset", "utf-8")
 		vars := mux.Vars(r)
-		recs, err := s.mapper.ReadByLT(vars["library"], vars["topic"], false)
+		recs, err := s.ltxMapper.ReadByLT(vars["library"], vars["topic"], false)
 		if err == nil {
 			t.Execute(w, recs)
 		} else {
 			log.Println(err.Error())
 			fmt.Fprintf(w, "%s", "Not found")
 		}
+	}
+}
+
+func (s *server) handleHomeV1() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Greetings from version 1 of the api")
+	}
+}
+func (s *server) handleHomeV2() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Greetings from version 2 of the api")
 	}
 }

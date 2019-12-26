@@ -8,12 +8,12 @@ import (
 	"testing"
 )
 
-var mapper *Mapper
+var mapper *LtxMapper
 
 func TestMain(m *testing.M) {
 	var err error
 	var theDb *sql.DB
-	mapper = &Mapper{}
+	mapper = &LtxMapper{}
 	theDb, err = sql.Open("sqlite3", "test.db")
 	if err!= nil {
 		fmt.Println(err.Error())

@@ -3,7 +3,6 @@ package lt
 /**
   TODO: figure out how to pass custom span formatting.  One approach is "rib~actors~Priest", where we split on ~ and if length > 2, we know the first part is the span format
   TODO: test via a doxago serve command
-  TODO: create a LiturgicalDay (ldp) package
 */
 import (
 	"bytes"
