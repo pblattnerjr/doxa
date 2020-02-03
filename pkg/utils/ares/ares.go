@@ -159,35 +159,39 @@ func saveDefinition(k string, v string, c string,
 	definitions map[string]string, commentsForKey map[string]string, keys *[]string, fname string) bool {
 
 	var found bool
-	var err error
 	var msg string
-	var oldV string
+	var oldValue string
 
-	oldV, found = definitions[k]
+	oldValue, found = definitions[k]
 
 	if found == false {
+		// Case 1: no previous definition, value is "" - save value
+		// Case 2: no previous definition, value is NOT "" - save value
 		definitions[k] = v // new value
-		commentsForKey[k] = c
-	} else if definitions[k] == emptyString {
+		commentsForKey[k] += c
+	} else if oldValue == emptyString && v == emptyString {
+		// Case 3: saved definition and current definition are both "" - discard this definition
+		msg = fmt.Sprintf("// line %d duplicate empty definition for key %s - discarded\n", lineCnt, k)
+		commentsForKey[k] += c + msg
+	} else if oldValue == emptyString && v != emptyString {
+		// Case 4: replacing empty definition with real definition
 		definitions[k] = v // substitute real value for placeholder
-		commentsForKey[k] = c
-	} else if v == emptyString {
-		err = errors.New(fmt.Sprintf("%s %d Invalid replacement of value %s for key %s with empty string",
-			fname, lineCnt, oldV, k))
-		log.Println(err)
-
-		if !alreadyDefined("//"+k, definitions) { // we need to create a place for the commented out key, too
-			*keys = append(*keys, "//"+k)
-
-			definitions["//"+k] = v    // save definition using commented out key
-			commentsForKey["//"+k] = c // save comments using commented out key
+		msg = fmt.Sprintf("// line %d empty definition for key %s replaced with %s\n", lineCnt, k, v)
+		commentsForKey[k] += c + msg
+	} else if oldValue != emptyString && v == emptyString {
+		// Case 5: old definitions is non-empty but new definition is "" - discard new definition
+		msg = fmt.Sprintf("// line %d Invalid replacement of value %s for key %s with empty string\n", lineCnt, oldValue, k)
+		commentsForKey[k] += c + msg
+	} else if oldValue != emptyString && v != emptyString {
+		if v == oldValue {
+			// Case 6: both old definitions and new definition are non-empty and the same - discard new definition
+			msg = fmt.Sprintf("// line %d duplicate value %s for key %s - discarded\n", lineCnt, v, k)
+		} else {
+			// Case 7: both old definitions and new definition are non-empty - use new definition
+			msg = fmt.Sprintf("// line %d Substituting value %s for key %s old value was %s\n", lineCnt, v, k, oldValue)
+			definitions[k] = v // updating value for key
 		}
-	} else {
-		msg = fmt.Sprintf("%s %d Substituting value %s for key %s with old value %s",
-			fname, lineCnt, v, k, oldV)
-		log.Println(msg)
-		definitions[k] = v // updating value for key
-		commentsForKey[k] = c
+		commentsForKey[k] += c + msg
 	}
 	return found
 }
@@ -312,6 +316,8 @@ func CleanAres(in, out string) error {
 	w.Flush()
 	return err
 }
+
+
 // GetAresErrors returns an array of errors found
 // in the specified ares file.  The errors will
 // be one of the error types defined in this package.

@@ -237,6 +237,7 @@ func TestRedirectBad(t *testing.T) {
 		t.Error("Expected err msg about bad redirect ID, got", err.Error())
 	}
 }
+
 // TestCleanAres is test case for F.2019.005.
 // The new feature is shown to be completed
 // when this test case passes, i.e. the files
@@ -246,8 +247,12 @@ func TestCleanAres(t *testing.T) {
 	fmt.Println(filename)
 	dir, _ := path.Split(filename)
 	dir = path.Join(dir,"test")
-	in := path.Join(dir,"in","dismissals_gr_GR_cog.ares")
-	out := path.Join(dir,"out","dismissals_gr_GR_cog.ares")
+
+	//in := path.Join(dir,"in","dismissals_gr_GR_cog.ares")
+	in := path.Join(dir,"in","testcases_en_EN_cog.ares")
+	//out := path.Join(dir,"out","dismissals_gr_GR_cog.ares")
+	out := path.Join(dir,"out","testcases_en_EN_cog.ares")
+
 	err := CleanAres(in, out)
 	if err != nil {
 		t.Error(err)
