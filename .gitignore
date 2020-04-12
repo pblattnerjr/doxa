@@ -7,3 +7,4 @@
 *.prof
 *.test
 cmd/doxago/doxago.exe
+pkg/utils/ares/test/out/
