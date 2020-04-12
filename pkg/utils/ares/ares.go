@@ -213,7 +213,7 @@ func CleanAres(in, out string) error {
 		err            error
 		parts          []string
 		line           string
-		line2          string
+		nextLine       string
 		aresKey        string
 		aresDef        string
 		keys           []string
@@ -233,12 +233,19 @@ func CleanAres(in, out string) error {
 	defer fileIn.Close()
 	scanner := bufio.NewScanner(fileIn)
 
+	theDir := filepath.Dir(out)
+	err = os.MkdirAll(theDir,os.ModeDir)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fileOut, err := os.Create(out)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer fileOut.Close()
 	w := bufio.NewWriter(fileOut)
+
+	var blockComment bool
 
 	//
 	// Phase 1 - scan the file creating a slice of keys to be written and
@@ -249,43 +256,46 @@ func CleanAres(in, out string) error {
 		line = strings.TrimSpace(line) // ??? why
 		lineCnt++
 
-		//
 		// Append all blank or comment lines to the 'comments' variable
 		// to be associated with the next key
 		if len(line) == 0 || strings.HasPrefix(line, "//") {
 			comments = comments + line + "\n"
 			continue
 		}
-		if strings.HasPrefix(line, "/*") {
+		if strings.HasPrefix(line, "/*") || blockComment {
 			comments = comments + line + "\n"
+			blockComment = true
 			continue
 		}
 		if strings.HasPrefix(line, "*/") || strings.HasSuffix(line, "*/") {
 			comments = comments + line + "\n"
+			blockComment = false
 			continue
 		}
 
-		parts = strings.Split(line, "=")
-		if len(parts) == 1 && parts[0] == "=" { // no "=" in the line, just treat it like a comment
+		if !strings.Contains(line,"=") { // no "=" in the line, just treat it like a comment
 			comments = comments + line + "\n"
 			continue
 		} else { // this is an assignment of some sort
+			parts = strings.Split(line, "=")
 			aresKey = strings.TrimSpace(parts[0])
 			aresDef = strings.TrimSpace(parts[1])
+			if len(parts) > 2 { // a few lines have an '=' in a trailing comment
+				aresDef = aresDef + " = " + strings.TrimSpace(parts[2])
+			}
 
 			if strings.HasPrefix(aresDef, "\"") { // right side starts with quote
-				// Special 2-line case with embedded newline
-				if !strings.HasSuffix(aresDef, "\"") { // right side has no close quote
-					scanner.Scan()
-					line2 = strings.TrimSpace(scanner.Text())
-					lineCnt++
-					if strings.Contains(line2, "\"") { // This is the second part of the definition.
-						aresDef = aresDef + " " + line2
-					} else {
-						err = errors.New(fmt.Sprintf("%s %d %s: invalid def continuation %s",
-							fileIn.Name(), lineCnt, line, line2)) //log error.
-						log.Println(err)
-						break
+				// Special multi-line case with embedded newline
+				// if aresDef has no close quote
+				if !strings.HasSuffix(aresDef, "\"") && strings.Count(aresDef,"\"") == 1 {
+					for {
+						scanner.Scan()
+						nextLine = strings.TrimSpace(scanner.Text())
+						lineCnt++
+						aresDef = aresDef + " " + nextLine
+						if strings.Contains(nextLine, "\"") { // This is the next line of the definition.
+							break
+						}
 					}
 				}
 			}
