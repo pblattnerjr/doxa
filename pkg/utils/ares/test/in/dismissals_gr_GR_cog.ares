@@ -1,5 +1,7 @@
 A_Resource_Whose_Name = dismissals_gr_GR_cog
 
+// The following key has escaped quotes.  There should not be an error.
+trCO.Ode6C13.text = "\"Thou hast clothed me in a body of clay, O Savior, and breathed life into me, and I beheld Thy light; and Thou hast raised me from the dead by Thy command.\""
 dis00 = ""
 dis00.andresurrection = "καὶ ἀναστὰς ἐκ νεκρῶν,"
 // The following line does not end with a quotation mark.  A line break was erroneously inserted.
