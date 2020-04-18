@@ -31,7 +31,7 @@ func FileExists(filename string) bool {
 	return !info.IsDir()
 }
 
-// Create a schema in a Sqlite3 database opened using a supplied path (dbname)
+// Merge a schema in a Sqlite3 database opened using a supplied path (dbname)
 func CreateSchema(schema string, dbname string) error {
 	db, err := sqlx.Connect("sqlite3", dbname)
 	if err != nil {

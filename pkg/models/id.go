@@ -17,7 +17,7 @@ type Id struct {
 func (i Id) ToNeoId() string {
 	return fmt.Sprintf("%s~%s~%s", i.Domain.ToNeo(), i.Topic, i.Key)
 }
-// Create an Ares filename from the ID parts,
+// Merge an Ares filename from the ID parts,
 // e.g. actors_gr_GR_cog.ares
 func (i Id) ToNeoAresFilename() string {
 	return fmt.Sprintf("%s_%s.ares", i.Topic, i.Domain.ToAres())

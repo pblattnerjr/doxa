@@ -30,12 +30,12 @@ func ToNwp(text string) string {
 	return result
 }
 
-// Create canonical OLW ID from supplied parts
+// Merge canonical OLW ID from supplied parts
 func ToId(lang string, country string, realm string, topic string, key string) string {
 	return ToDomain(lang, country, realm) + "~" + topic + "~" + key
 }
 
-// Create canonical OLW domain (aka library) from parts
+// Merge canonical OLW domain (aka library) from parts
 func ToDomain(language string, country string, realm string) string {
 	return strings.ToLower(language + "_" + country + "_" + realm)
 }

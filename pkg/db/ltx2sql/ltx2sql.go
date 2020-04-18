@@ -23,6 +23,8 @@ import (
 	"fmt"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/liturgiko/doxa/pkg/models"
+	"strconv"
+	"strings"
 )
 // TODO: the various functions in ltx and rdb that handle database transactions need to be moved here
 
@@ -51,6 +53,18 @@ var SQLMerge = `INSERT OR REPLACE INTO ltx (id, topic, key, value, nnp, nwp, com
 
 // SQL to delete a record by id
 var SQLDelete = `DELETE ltx WHERE id = $1`
+
+// SQL to record count like id
+var SQLCountIDLike = `SELECT COUNT(*) FROM ltx WHERE id like $1`
+
+// SQL to record count like id
+var SQLCountTopicsForLibrary = `SELECT COUNT(DISTINCT topic) FROM ltx WHERE id like $1`
+
+// SQL to get distinct topics for a library
+var SQLTopicsForLibrary = `SELECT DISTINCT topic FROM ltx WHERE id LIKE $1 ORDER BY topic  COLLATE NOCASE ASC`
+
+// SQL to get keys for a library and topic
+var SQLKeysForTopic = `SELECT DISTINCT key FROM ltx WHERE id LIKE $1 ORDER BY key COLLATE NOCASE ASC`
 
 // Database column names for the struct.  Must correspond to the Fields() interface below
 func (m *LtxMapper) Columns() string {
@@ -81,8 +95,8 @@ func (m *LtxMapper) BulkInsert(in <-chan *models.Ltx) error {
 	err = tx.Commit()
 	return err
 }
-// Creates a row from the struct in the database table
-func (m *LtxMapper) Create(l *models.Ltx) error {
+// Creates or updates a row from the struct in the database table using SQL MERGE
+func (m *LtxMapper) Merge(l *models.Ltx) error {
 	_, err := m.DB.Exec(SQLMerge, l.ID, l.Topic, l.Key, l.Value, l.NNP, l.NWP, l.Comment, l.Redirect)
 	return err
 }
@@ -91,8 +105,14 @@ func (m *LtxMapper) ReadById(id string) (*models.Ltx, error) {
 	return m.QueryRow("id = $1", id)
 }
 // Read (by library, topic, and key) returns a struct populated by reading the database table for the specified library, topic, and key
-func (m *LtxMapper) ReadByLTK(library, topic, key string) ([]*models.Ltx, error) {
-	return m.Query("id = $1", true, fmt.Sprintf("%s~%s~%s", library, topic, key))
+func (m *LtxMapper) ReadByLTK(library, topic, key string) (*models.Ltx, error) {
+	recs, err := m.Query("id = $1", true, fmt.Sprintf("%s~%s~%s", library, topic, key))
+	if len(recs) > 0 {
+		return recs[0], err
+	} else {
+		return nil, err
+	}
+
 }
 // Read (by library and topic) returns a struct populated by reading the database table for the specified library and topic
 func (m *LtxMapper) ReadByLT(library, topic string, returnEmpty bool) ([]*models.Ltx, error) {
@@ -140,7 +160,7 @@ func (m *LtxMapper) Query(c string, returnEmpty bool, v ...interface{}) ([] *mod
 
 	// TODO: need to modify the SQL to match the one in Ltx that does a join if redirect is populated
 	q := fmt.Sprintf(`SELECT %s FROM ltx WHERE %s`, m.Columns(), c)
-	rows, err := m.DB.Query(q,v...,)
+	rows, err := m.DB.Query(q,v...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -168,8 +188,191 @@ func (m *LtxMapper) Query(c string, returnEmpty bool, v ...interface{}) ([] *mod
 	err = rows.Err()
 	return records, err
 }
+// Returns an array of the libraries found in the database
+func (m *LtxMapper) Libraries() ([] string, error) {
+	var records []string
+//	rows, err := m.DB.Query("SELECT distinct topic AS Library FROM ltx ORDER BY topic;")
+	rows, err := m.DB.Query("SELECT distinct substr(id, 1, pos-1) AS library FROM (SELECT *, instr(id,\"~\") AS pos FROM ltx) ORDER BY id;")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var library string
+		err = rows.Scan(&library)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		if len(library) > 0 {
+			records = append(records, library)
+		}
+	}
+	err = rows.Err()
+	return records, err
+}
+// Returns an array of the topics found in the database for specified library
+func (m *LtxMapper) Topics(like string) ([] string, error) {
+	var records []string
+	rows, err := m.DB.Query(SQLTopicsForLibrary, like+"%")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var topic string
+		err = rows.Scan(&topic)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		if len(topic) > 0 {
+			records = append(records, topic)
+		}
+	}
+	err = rows.Err()
+	return records, err
+}
+// Returns an array of the keys found in the database for specified library and topic
+func (m *LtxMapper) Keys(like string) ([] string, error) {
+	var records []string
+	rows, err := m.DB.Query(SQLKeysForTopic, like+"%")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item string
+		err = rows.Scan(&item)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		if len(item) > 0 {
+			records = append(records, item)
+		}
+	}
+	err = rows.Err()
+	return records, err
+}
+// Returns an array of the distinct values of the specified column
+func (m *LtxMapper) Distinct(column, like string) ([] string, error) {
+	var records []string
+	var q string
+	if len(like) > 0 {
+		q = fmt.Sprintf(`SELECT distinct %s AS item FROM ltx WHERE id LIKE "%s" ORDER BY %s;`, column, like, column)
+	} else {
+		q = fmt.Sprintf(`SELECT distinct %s AS item FROM ltx ORDER BY %s;`, column, column)
+	}
+	rows, err := m.DB.Query(q)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item string
+		err = rows.Scan(&item)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		if len(item) > 0 {
+			records = append(records, item)
+		}
+	}
+	err = rows.Err()
+	return records, err
+}
 // Deletes a row from the struct in the database table for the specified id
 func (m *LtxMapper) Delete(id string) error {
 	_, err := m.DB.Exec(SQLDelete, id)
 	return err
+}
+// returns the count for id like specified library, topic, key
+// Topic and/or key can be empty strings
+func (m *LtxMapper) CountTopics(library string) (int, error) {
+	var count int
+	var sb strings.Builder
+	sb.WriteString(library)
+	sb.WriteString("~%")
+	q := sb.String()
+	rows, err := m.DB.Query(SQLCountTopicsForLibrary, q)
+	if err != nil {
+		return -1, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item string
+		err = rows.Scan(&item)
+		if err != nil {
+			return -1, err
+		}
+		count, err = strconv.Atoi(item)
+		if err != nil {
+			return -1, err
+		}
+	}
+	err = rows.Err()
+	return count, err
+}
+// returns the count for id like specified library, topic, key
+// Topic and/or key can be empty strings
+func (m *LtxMapper) CountKeys(library, topic, key string) (int, error) {
+	var count int
+	var sb strings.Builder
+	if len(key) > 0 {
+		sb.WriteString(library)
+		sb.WriteString("~")
+		sb.WriteString(topic)
+		sb.WriteString("~")
+		sb.WriteString(key)
+	} else if len(topic) > 0 {
+		sb.WriteString(library)
+		sb.WriteString("~")
+		sb.WriteString(topic)
+		sb.WriteString("~")
+		sb.WriteString("%")
+	} else {
+		sb.WriteString(library)
+		sb.WriteString("~")
+		sb.WriteString("%")
+	}
+	rows, err := m.DB.Query(SQLCountIDLike, sb.String())
+	if err != nil {
+		return -1, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item string
+		err = rows.Scan(&item)
+		if err != nil {
+			return -1, err
+		}
+		count, err = strconv.Atoi(item)
+		if err != nil {
+			return -1, err
+		}
+	}
+	err = rows.Err()
+	return count, err
 }

@@ -44,9 +44,9 @@ func TestMapper_Create(t *testing.T) {
 	topic := "actors"
 	key := "Priest"
 	l := models.NewLtx(library, topic, key, "Priest", "", "")
-	err := mapper.Create(l)
+	err := mapper.Merge(l)
 	if err != nil {
-		t.Error(fmt.Sprintf("Create %s: %v", l.ID, err))
+		t.Error(fmt.Sprintf("Merge %s: %v", l.ID, err))
 	}
 	r, err := mapper.ReadById(l.ID)
 	if err != nil {
@@ -56,9 +56,9 @@ func TestMapper_Create(t *testing.T) {
 		t.Error(fmt.Sprintf("Read %s, %s: do not match", l.ID, r.ID))
 	}
 	s := models.NewLtx(library, topic, "deacon", "Deacon", "", "")
-	err = mapper.Create(s)
+	err = mapper.Merge(s)
 	if err != nil {
-		t.Error(fmt.Sprintf("Create %s: %v", s.ID, err))
+		t.Error(fmt.Sprintf("Merge %s: %v", s.ID, err))
 	}
 	records, err := mapper.ReadByLT(library, topic, true)
 	if err != nil {
@@ -81,9 +81,9 @@ func TestMapper_Create(t *testing.T) {
 		t.Error(fmt.Sprintf("ReadByTK %s~%s, expected 1, got: %v", topic, key, len(records)))
 	}
 	u := models.NewLtx("en_us_dedes", topic, "deacon", "Deacon", "", "")
-	err = mapper.Create(u)
+	err = mapper.Merge(u)
 	if err != nil {
-		t.Error(fmt.Sprintf("Create %s: %v", u.ID, err))
+		t.Error(fmt.Sprintf("Merge %s: %v", u.ID, err))
 	}
 	v := "Deacon"
 	records, err = mapper.ReadByValue(v)

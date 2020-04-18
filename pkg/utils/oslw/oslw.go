@@ -113,7 +113,7 @@ func Res2Sql(dir string, dbName string, logger *log.Logger) error {
 					update = err != nil
 				}
 				if update {
-					err = mapper.Create(&ltx)
+					err = mapper.Merge(&ltx)
 				}
 				if err != nil {
 					logger.Println(err.Error())

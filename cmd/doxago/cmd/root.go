@@ -164,7 +164,7 @@ func initializeDb(db string) {
 	// load the database
 	start := time.Now()
 
-	// set up the logger, which will be passed to the functions that do the processing
+	// set popPath the logger, which will be passed to the functions that do the processing
 	LogFile, err := os.OpenFile(LogFilename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		panic(err)
