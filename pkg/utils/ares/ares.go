@@ -74,7 +74,9 @@ func ParseLine(filenameParts FilenameParts, line string) (LineParts, error) {
 		if len(parts) > 1 {
 			result.Key = strings.TrimSpace(parts[0])
 			result.Value = strings.TrimSpace(parts[1])
-			if strings.Index(result.Value, "//") > -1 {
+			startComment := strings.Index(result.Value, "//")
+			lastQuote := strings.LastIndex(result.Value, "\"")
+			if startComment > -1 && lastQuote < startComment { // The string "//" is valid inside a definition
 				result.HasComment = true
 				valueParts := strings.Split(result.Value, "//")
 				result.Value = strings.TrimSpace(valueParts[0])
@@ -155,8 +157,8 @@ var lineCnt int
 var fileIn *os.File
 var fileOut *os.File
 
-func saveDefinition(k string, v string, c string,
-	definitions map[string]string, commentsForKey map[string]string, keys *[]string, fname string) bool {
+func saveDefinition(k string, v string, c string, noComment bool,
+	definitions map[string]string, commentsForKey map[string]string) bool {
 
 	var found bool
 	var msg string
@@ -168,20 +170,28 @@ func saveDefinition(k string, v string, c string,
 		// Case 1: no previous definition, value is "" - save value
 		// Case 2: no previous definition, value is NOT "" - save value
 		definitions[k] = v // new value
-		commentsForKey[k] += c
+		if !noComment {
+			commentsForKey[k] += c
+		}
 	} else if oldValue == emptyString && v == emptyString {
 		// Case 3: saved definition and current definition are both "" - discard this definition
 		msg = fmt.Sprintf("// line %d duplicate empty definition for key %s - discarded\n", lineCnt, k)
-		commentsForKey[k] += c + msg
+		if !noComment {
+			commentsForKey[k] += c + msg
+		}
 	} else if oldValue == emptyString && v != emptyString {
 		// Case 4: replacing empty definition with real definition
 		definitions[k] = v // substitute real value for placeholder
 		msg = fmt.Sprintf("// line %d empty definition for key %s replaced with %s\n", lineCnt, k, v)
-		commentsForKey[k] += c + msg
+		if !noComment {
+			commentsForKey[k] += c + msg
+		}
 	} else if oldValue != emptyString && v == emptyString {
 		// Case 5: old definitions is non-empty but new definition is "" - discard new definition
 		msg = fmt.Sprintf("// line %d Invalid replacement of value %s for key %s with empty string\n", lineCnt, oldValue, k)
-		commentsForKey[k] += c + msg
+		if !noComment {
+			commentsForKey[k] += c + msg
+		}
 	} else if oldValue != emptyString && v != emptyString {
 		if v == oldValue {
 			// Case 6: both old definitions and new definition are non-empty and the same - discard new definition
@@ -191,7 +201,9 @@ func saveDefinition(k string, v string, c string,
 			msg = fmt.Sprintf("// line %d Substituting value %s for key %s old value was %s\n", lineCnt, v, k, oldValue)
 			definitions[k] = v // updating value for key
 		}
-		commentsForKey[k] += c + msg
+		if !noComment {
+			commentsForKey[k] += c + msg
+		}
 	}
 	return found
 }
@@ -208,7 +220,7 @@ func hasComments(k string, commentsForKey map[string]string) bool {
 	return found
 }
 
-func CleanAres(in, out string) error {
+func CleanAres(in, out string, noComment bool) error {
 	var (
 		err            error
 		parts          []string
@@ -253,8 +265,9 @@ func CleanAres(in, out string) error {
 	//
 	for scanner.Scan() {
 		line = strings.TrimSpace(scanner.Text())
-		line = strings.TrimSpace(line) // ??? why
+		line = strings.TrimSpace(line)
 		lineCnt++
+
 
 		// Append all blank or comment lines to the 'comments' variable
 		// to be associated with the next key
@@ -280,6 +293,7 @@ func CleanAres(in, out string) error {
 			parts = strings.Split(line, "=")
 			aresKey = strings.TrimSpace(parts[0])
 			aresDef = strings.TrimSpace(parts[1])
+			aresDef = strings.ReplaceAll(aresDef,"\\\"","%%")  // guard escaped quotes
 			if len(parts) > 2 { // a few lines have an '=' in a trailing comment
 				aresDef = aresDef + " = " + strings.TrimSpace(parts[2])
 			}
@@ -287,13 +301,19 @@ func CleanAres(in, out string) error {
 			if strings.HasPrefix(aresDef, "\"") { // right side starts with quote
 				// Special multi-line case with embedded newline
 				// if aresDef has no close quote
-				if !strings.HasSuffix(aresDef, "\"") && strings.Count(aresDef,"\"") == 1 {
+				if aresDef == "\"" ||  !strings.HasSuffix(aresDef, "\"") && strings.Count(aresDef,"\"") == 1 {
 					for {
 						scanner.Scan()
 						nextLine = strings.TrimSpace(scanner.Text())
+						nextLine = strings.ReplaceAll(nextLine,"\\\"","%%") // guard escaped quotes
 						lineCnt++
-						aresDef = aresDef + " " + nextLine
-						if strings.Contains(nextLine, "\"") { // This is the next line of the definition.
+						if aresDef != "\"" && nextLine != "\"" {
+							aresDef = aresDef + " " + nextLine
+						} else {
+							aresDef = aresDef + nextLine // no need for extra space at start or end
+						}
+
+						if strings.HasSuffix(nextLine, "\"") { // This is the last line of the definition.
 							break
 						}
 					}
@@ -304,7 +324,9 @@ func CleanAres(in, out string) error {
 				keys = append(keys, aresKey)
 			}
 
-			saveDefinition(aresKey, aresDef, comments, definitions, commentsForKey, &keys, fileIn.Name())
+			aresDef = strings.ReplaceAll(aresDef,"%%","\\\"") // restore escaped quotes
+
+			saveDefinition(aresKey, aresDef, comments, noComment, definitions, commentsForKey)
 			comments = ""
 		}
 	}
@@ -342,7 +364,7 @@ func GetAresErrors(in string) *[]error {
 	var fileNameParts FilenameParts
 	fileNameParts, err = ParseAresFileName(file.Name())
 	if err != nil {
-		result = append(result, err)
+		result = append(result, errors.New(fmt.Sprintf("%s: %v", file.Name(), err)))
 	}
 	var lineCnt int
 	inCommentBlock := false
