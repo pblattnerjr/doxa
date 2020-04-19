@@ -1,3 +1,4 @@
+TheotokeSyEi.text1 = "Theotokos, you are the true vine that produced the fruit of life. Lady, we fervently entreat you to intercede along with " // insert "" and specific kind of saint, from ares file.
 // Test Case 1: a key with an empty value that does not get defined later
 testcase1 = ""
 // Test Case 2: a key with a non-empty value that does not get re-defined later
