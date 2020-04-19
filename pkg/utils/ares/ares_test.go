@@ -2,7 +2,8 @@ package ares
 
 import (
 	"fmt"
-	"path"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -242,28 +243,95 @@ func TestRedirectBad(t *testing.T) {
 // The new feature is shown to be completed
 // when this test case passes, i.e. the files
 // in test/out have no errors in them.
+
+var allErrors []error
+var aresErrors *[]error
+
 func TestCleanAres(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	fmt.Println(filename)
-	dir, _ := path.Split(filename)
-	dir = path.Join(dir,"test")
+	dir, _ := filepath.Split(filename)
+	dir = filepath.Join(dir,"test")
 
-	//in := path.Join(dir,"in","dismissals_gr_GR_cog.ares")
-	in := path.Join(dir,"in","testcases_en_EN_cog.ares")
-	//out := path.Join(dir,"out","dismissals_gr_GR_cog.ares")
-	out := path.Join(dir,"out","testcases_en_EN_cog.ares")
+	var suppressComments bool
 
-	err := CleanAres(in, out)
-	if err != nil {
-		t.Error(err)
+	noCommentArg, success := os.LookupEnv("NOCOMMENT")
+	if !success {
+		fmt.Println("NOCOMMENT is not defined")
+	} else if noCommentArg == "true" {
+		suppressComments = true
+	} else {
+		suppressComments = false
 	}
-	// len(*aresErrors) will be zero if all errors were
-	// corrected by CleanAres.
-	aresErrors := GetAresErrors(out)
+	fmt.Println("noCommentArg has value ", noCommentArg)
 
-	if len(*aresErrors) > 0 {
-		t.Error(fmt.Sprintf("Expected no errors, got %d", len(*aresErrors)))
-		for _, err := range *aresErrors {
+	inArg, success := os.LookupEnv("IN")
+	if !success {
+		fmt.Println("IN is not defined")
+	} else {
+		fmt.Println("inArg has value ", inArg)
+	}
+	outArg, success := os.LookupEnv("OUT")
+	if !success {
+		fmt.Println("OUT is not defined")
+	} else {
+		fmt.Println("outArg has value ", outArg)
+	}
+
+	//in := filepath.Join(dir,"in",inArg)
+	//in := filepath.Join(dir,"in","dismissals_gr_GR_cog.ares")
+	in := filepath.Join(dir,"in","testcases_en_EN_cog.ares")
+	//in := "C:\\Users\\paulbjr\\doxa\\repos\\ares\\AGES-Initiatives"
+
+	//out := filepath.Join(dir,"out",outArg)
+	//out := filepath.Join(dir,"out","dismissals_gr_GR_cog.ares")
+	out := filepath.Join(dir,"out","testcases_en_EN_cog.ares")
+	//out := filepath.Join(dir,"out","root")
+
+	var walkErr error
+
+	fi, _ := os.Stat(in)
+	if !fi.IsDir() && strings.HasSuffix(in, ".ares") {
+		walkErr = CleanAres(in, out, suppressComments)  // processing a file, nor a directory
+		if walkErr != nil {
+			allErrors = append(allErrors,walkErr)
+		} else {
+			aresErrors = GetAresErrors(out)
+			for _, err := range *aresErrors {
+				allErrors = append(allErrors, err)
+			}
+		}
+	} else {
+		walkErr = filepath.Walk(in, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				fmt.Printf("prevent panic by handling failure accessing path %q: %v\n", path, err)
+				return err
+			} else {
+				fmt.Printf("process directory: %q\n", path)
+				if !info.IsDir() && !strings.Contains(path, ".git") {
+					fname := info.Name()
+					if strings.HasSuffix(path, ".ares") {
+						fmt.Printf("clean file: %q on %q\n",fname, path)
+						walkErr = CleanAres(path, out + path[len(in):], suppressComments)
+						if walkErr != nil {
+							allErrors = append(allErrors,walkErr)
+						} else {
+							aresErrors = GetAresErrors(out + path[len(in):])
+							for _, err := range *aresErrors {
+								allErrors = append(allErrors, err)
+							}
+						}
+					}
+				}
+			}
+			return nil
+		})
+	}
+
+	// len(allErrors) will be zero if all errors were corrected by CleanAres.
+	if len(allErrors) > 0 {
+		t.Error(fmt.Sprintf("Expected no errors, got %d", len(allErrors)))
+		for _, err := range allErrors {
 			t.Error(err.Error())
 		}
 	}
