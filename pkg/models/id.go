@@ -13,6 +13,12 @@ type Id struct {
 	Topic string
 	Key string
 }
+func (i Id) IsEmpty() bool {
+	return len(i.Domain.Country) == 0
+}
+func (i Id) HasValues() bool {
+	return ! i.IsEmpty()
+}
 // Convert the ID to the format used in the OLW Neo4j database
 func (i Id) ToNeoId() string {
 	return fmt.Sprintf("%s~%s~%s", i.Domain.ToNeo(), i.Topic, i.Key)
@@ -22,14 +28,33 @@ func (i Id) ToNeoId() string {
 func (i Id) ToNeoAresFilename() string {
 	return fmt.Sprintf("%s_%s.ares", i.Topic, i.Domain.ToAres())
 }
+func (i Id) ToPath() string {
+	return fmt.Sprintf("%s/%s/%s",i.Domain.ToNeo(),i.Topic, i.Key)
+}
+// Sets ID to specified library, topic, key
+func (i *Id) Set(library, topic, key string) error {
+	var d Domain
+	err := d.Parse(library)
+	if err != nil {
+		return err
+	}
+	i.Domain = d
+	i.Topic = topic
+	i.Key = key
+	return nil
+}
 // Parses a tilde delimited id into its parts: domain (aka library), topic, and key
-func (i Id) Parse(id string) error {
+func (i *Id) Parse(id string) error {
 	var err error
 	parts := strings.Split(id, "~")
-	if len(parts) != 3 {
+	if len(parts) == 3 {
+		var d Domain
+		d.Parse(parts[0])
+		i.Domain = d
+		i.Topic = parts[1]
+		i.Key = parts[2]
+	} else {
 		return errors.New(fmt.Sprintf("Parse %s: %v", id, err.Error()))
 	}
-
 	return err
 }
-

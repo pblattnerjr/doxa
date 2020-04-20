@@ -125,18 +125,36 @@ func (m *LtxMapper) ReadByTK(topic, key string, returnEmpty bool) ([]*models.Ltx
 // Read (by value) returns a struct populated by reading the database table for the specified substring in the value column.
 // Note that the value property stores a text value unchanged.  This means it preserves punctuation and accents.
 // There are other methods (ReadByNNP and ReadByNWP) that provide a search against a normalized version of the value.
-func (m *LtxMapper) ReadByValue(substring string) ([]*models.Ltx, error) {
-	return m.Query("value like $1", true, fmt.Sprintf("%%%s%%", substring))
+// id is the record id and can be empty or use %, e.g. gr_gr_cog% instead of a full id
+// substring is what is being searched for.
+func (m *LtxMapper) ReadByValue(id, substring string) ([]*models.Ltx, error) {
+	if len(id) > 0 {
+		return m.Query("value like $1", true, id, fmt.Sprintf("%%%s%%", substring))
+	} else {
+		return m.Query("value like $1", true, fmt.Sprintf("%%%s%%", substring))
+	}
 }
 // Read (by NNP) returns a struct populated by reading the database table for the specified substring in the nnp column.
 // The NNP column is a normalized version of the value, converted to lower case, with accents removed. It has no punctuation (NP)
-func (m *LtxMapper) ReadByNNP(substring string) ([]*models.Ltx, error) {
-	return m.Query("nnp like $1", true, fmt.Sprintf("%%%s%%", substring))
+// id is the record id and can be empty or use %, e.g. gr_gr_cog% instead of a full id
+// substring is what is being searched for.
+func (m *LtxMapper) ReadByNNP(id, substring string) ([]*models.Ltx, error) {
+	if len(id) > 0 {
+		return m.Query("id LIKE $1 and nnp LIKE $2 ESCAPE '\\'", true, id, fmt.Sprintf("%%%s%%", substring))
+	} else {
+		return m.Query("nnp like $1 ESCAPE '\\'", true, fmt.Sprintf("%%%s%%", substring))
+	}
 }
 // Read (by NWP) returns a struct populated by reading the database table for the specified substring in the nnp column.
 // The NWP column is a normalized version of the value, converted to lower case, with accents removed. But, it is with punctuation (WP).
-func (m *LtxMapper) ReadByNWP(substring string) ([]*models.Ltx, error) {
-	return m.Query("nwp like $1", true, fmt.Sprintf("%%%s%%", substring))
+// id is the record id and can be empty or use %, e.g. gr_gr_cog% instead of a full id
+// substring is what is being searched for.
+func (m *LtxMapper) ReadByNWP(id, substring string) ([]*models.Ltx, error) {
+	if len(id) > 0 {
+		return m.Query("id LIKE $1 and nwp LIKE $2 ESCAPE '\\'", true, id, fmt.Sprintf("%s%%%s%%", id, substring))
+	} else {
+		return m.Query("nwp like $1 ESCAPE '\\'", true, fmt.Sprintf("%%%s%%", substring))
+	}
 }
 // Returns a struct, if found, populated by reading the database table using the c (condition) and interface values
 func (m *LtxMapper) QueryRow(c string, v ...interface{}) (*models.Ltx, error) {
