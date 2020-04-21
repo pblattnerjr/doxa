@@ -4,8 +4,10 @@ package cmd
 
 import (
 	SQL "database/sql"
+	"encoding/json"
 	"fmt"
 	prompt "github.com/c-bata/go-prompt"
+	"github.com/liturgiko/doxa/pkg/concord"
 	"github.com/liturgiko/doxa/pkg/db/ltx2sql"
 	"github.com/liturgiko/doxa/pkg/models"
 	"github.com/spf13/cobra"
@@ -32,10 +34,12 @@ var shellCmd = &cobra.Command{
 		defer db.Close()
 		mapper.DB = db
 
-		settings.padding.p1 = 4
-		settings.padding.p2 = 50
-		settings.padding.p3 = 0
-		settings.width = 30
+		settings.Padding.P1 = 4
+		settings.Padding.P2 = 50
+		settings.Padding.P3 = 0
+		settings.ShowEmpty = false
+		settings.Sort = concord.SortRight
+		settings.Width = 30
 
 		setSuggestions()
 		p := prompt.New(
@@ -54,19 +58,22 @@ func init() {
 }
 
 var mapper = ltx2sql.LtxMapper{}
+var cMap map[string]concord.ConcordanceLine
 var suggestions []prompt.Suggest
 var pathDelimiter = "/" // strconv.QuoteRune(os.PathSeparator)
 type Padding struct {
-	p1 int
-	p2 int
-	p3 int
+	P1 int `json:"number"`
+	P2 int `json:"id"`
+	P3 int `json:"value"`
 }
 type Settings struct {
-	exact   bool
-	idlike  string
-	padding Padding
-	vfirst  bool
-	width   int
+	Exact   bool          `json:".exact"`
+	IDlike  string        `json:".idlike"`
+	Padding Padding       `json:".padding"`
+	Vfirst  bool          `json:".vfirst"`
+	Width   int           `json:".width"`
+	ShowEmpty bool `json:".showempty"`
+	Sort    concord.Order `json:".sort"`
 }
 
 var settings Settings
@@ -77,7 +84,7 @@ type Context struct {
 	key     string // key of current path, e.g. Priest
 	path    string // current path, e.g. gr_gr_cog/actors/Priest
 	tHeight int    // height of the user's terminal window
-	tWidth  int    // width of the user's terminal window
+	tWidth  int    // Width of the user's terminal window
 }
 
 var context Context
@@ -208,37 +215,31 @@ func executor(in string) {
 		}
 		setSuggestions()
 		return
-	case "context":
+	case "cmp":
 		{
-			method = "context"
-			fmt.Printf("Library: %s, Topic: %s, Key: %s, Path: %s, Depth: %d\n", context.library, context.topic, context.key, context.path, context.Depth())
-		}
-	case "exact":
-		{
-			method = "exact"
-			if len(blocks) > 1 {
-				settings.exact = strings.Contains(strings.ToLower(blocks[1]), "on")
-				if settings.exact {
-					fmt.Println("on")
-				} else {
-					fmt.Println("off")
+			method = "cmp"
+			if context.Depth() == 3 {
+				recs,err := mapper.ReadByTK(context.topic, context.key,settings.ShowEmpty)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				for _,rec := range recs {
+					fmt.Printf("%s\n",strings.Repeat("-",context.tWidth))
+					fmt.Println(rec.ID)
+					fmt.Printf("%s\n",strings.Repeat("-",context.tWidth))
+					fmt.Println(rec.Value)
 				}
 			} else {
-				if settings.exact {
-					fmt.Println("Exact match for find is on. To switch off: exact off")
-				} else {
-					fmt.Println("Exact match for find is off. To switch on: exact on")
-				}
+				fmt.Println("You must be three levels deep to use this command.")
 			}
 		}
-	case "exit":
-		fmt.Println("Bye!")
-		os.Exit(0)
 	case "find":
 		{
 			method = "find"
+			cMap = make(map[string]concord.ConcordanceLine)
 			idMap = make(map[int]models.Id)
-			tHeight, tWidth, err := terminal.GetSize(0)
+			tWidth, tHeight, err := terminal.GetSize(0)
 			if err != nil {
 				fmt.Println(err)
 			} else {
@@ -258,8 +259,8 @@ func executor(in string) {
 				var recs []*models.Ltx
 				var err error
 				var id string
-				if len(settings.idlike) > 0 {
-					id = settings.idlike
+				if len(settings.IDlike) > 0 {
+					id = settings.IDlike
 				} else {
 					var sb strings.Builder
 					switch context.Depth() {
@@ -280,7 +281,7 @@ func executor(in string) {
 					}
 					id = sb.String()
 				}
-				if settings.exact {
+				if settings.Exact {
 					recs, err = mapper.ReadByValue(id, value)
 				} else {
 					recs, err = mapper.ReadByNNP(id, value)
@@ -288,57 +289,44 @@ func executor(in string) {
 				if err != nil {
 					fmt.Println(err)
 				} else {
-					for i, rec := range recs {
-						var id models.Id
-						id.Parse(rec.ID)
-						idMap[i+1] = id
+					for _, rec := range recs {
 						var line = ""
-						if settings.exact {
+						if settings.Exact {
 							line = rec.Value
 						} else {
 							line = rec.NNP
 						}
-						concord := cline(line, value, settings.width)
-						if settings.vfirst {
-							fmt.Printf("%*d|%*s|%*s\n", settings.padding.p1, i+1, settings.padding.p2, concord, settings.padding.p3, rec.ID)
-						} else {
-							if len(rec.ID) > 50 {
-								parts := strings.Split(rec.ID, "~")
-								fmt.Printf("%*d |%s~%s~\n", settings.padding.p1, i+1, parts[0], parts[1])
-								fmt.Printf("     | %*s | %*s\n", settings.padding.p2, rec.Key, settings.padding.p3, concord)
+
+						cline(fmt.Sprintf("%*s", settings.Padding.P2, rec.ID), line, value, settings.Width)
+					}
+					for i, res := range concord.SortedKeys(cMap, settings.Sort) {
+						var id models.Id
+						id.Parse(strings.TrimSpace(cMap[res].ID))
+						idMap[i+1] = id
+						if len(strings.TrimSpace(cMap[res].ID)) > 50 {
+							parts := strings.Split(cMap[res].ID, "~")
+							if len(parts) == 3 {
+								fmt.Printf("%*d |%s~%s~\n", settings.Padding.P1, i+1, parts[0], parts[1])
+								fmt.Printf("     | %*s | %-s%s%s\n", settings.Padding.P2, parts[2], cMap[res].Left, cMap[res].Key, cMap[res].Right)
 							} else {
-								fmt.Printf("%*d | %*s | %*s\n", settings.padding.p1, i+1, settings.padding.p2, rec.ID, settings.padding.p3, concord)
+								// bad
+								fmt.Printf("%*d | %*s | %-s%s%s\n", settings.Padding.P1, i+1, settings.Padding.P2, cMap[res].ID, cMap[res].Left, cMap[res].Key, cMap[res].Right)
 							}
+						} else {
+							fmt.Printf("%*d | %*s | %-s%s%s\n", settings.Padding.P1, i+1, settings.Padding.P2, cMap[res].ID, cMap[res].Left, cMap[res].Key, cMap[res].Right)
 						}
 					}
-					fmt.Printf("%d records found. ", len(recs))
-					if len(settings.idlike) > 0 {
-						fmt.Printf("idlike = %s, so current path was not used. To turn off: idlike %%", settings.idlike)
+					var exact = "off"
+					if settings.Exact {
+						exact = "off"
+					}
+					fmt.Printf("%d records found. Find .exact %s. To change: .exact on or .exact off", len(recs), exact)
+					if len(settings.IDlike) > 0 {
+						fmt.Printf(".idlike = %s, so current path was not used. To turn off: idlike %%", settings.IDlike)
 					}
 					fmt.Println("")
+
 				}
-			}
-		}
-	case "idlike":
-		{
-			method = "idlike"
-			if len(blocks) > 1 {
-				if blocks[1] == "%" {
-					settings.idlike = ""
-					fmt.Println("idlike turned off")
-				} else {
-					settings.idlike = blocks[1]
-					if !strings.HasPrefix(settings.idlike, "%") {
-						settings.idlike = "%" + settings.idlike
-					}
-					if !strings.HasSuffix(settings.idlike, "%") {
-						settings.idlike = settings.idlike + "%"
-						fmt.Println(settings.idlike)
-						fmt.Println("To turn off: idlike %")
-					}
-				}
-			} else {
-				fmt.Printf("You must provide an id pattern, e.g. en%% or %%dedes%%\n")
 			}
 		}
 	case "ls":
@@ -420,16 +408,87 @@ func executor(in string) {
 				}
 			}
 		}
-	case "padding":
+	case "set":
+		// TODO: when ltx struct is modified to have properties for create/modify date and by whom, need to set these here.
+		method = "set"
+		rec, err := mapper.ReadByLTK(context.library, context.topic, context.key)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			value := ""
+			if len(blocks) > 1 { // if len == 0, user wants to set value to blank
+				value = escape(strings.Join(blocks[1:len(blocks)], " "))
+			}
+			rec.SetValue(value)
+			mapper.Merge(rec)
+			fmt.Println(rec.Value)
+		}
+	case ".context":
 		{
-			method = "padding"
+			method = ".context"
+			fmt.Printf("Library: %s, Topic: %s, Key: %s, Path: %s, Depth: %d\n", context.library, context.topic, context.key, context.path, context.Depth())
+		}
+	case ".exact":
+		{
+			method = ".exact"
+			if len(blocks) > 1 {
+				settings.Exact = strings.Contains(strings.ToLower(blocks[1]), "on")
+				if settings.Exact {
+					err := mapper.CaseSensitiveLike(true)
+					if err != nil {
+						fmt.Println(err)
+					}
+					fmt.Println("on")
+				} else {
+					err := mapper.CaseSensitiveLike(false)
+					if err != nil {
+						fmt.Println(err)
+					}
+					fmt.Println("off")
+				}
+			} else {
+				if settings.Exact {
+					fmt.Println("Exact match for find is on. To switch off: .exact off")
+				} else {
+					fmt.Println("Exact match for find is off. To switch on: .exact on")
+				}
+			}
+		}
+	case ".exit":
+		fmt.Println("Bye!")
+		os.Exit(0)
+	case ".idlike":
+		{
+			method = ".idlike"
+			if len(blocks) > 1 {
+				if blocks[1] == "%" {
+					settings.IDlike = ""
+					fmt.Println(".idlike turned off")
+				} else {
+					settings.IDlike = blocks[1]
+					if !strings.HasPrefix(settings.IDlike, "%") {
+						settings.IDlike = "%" + settings.IDlike
+					}
+					if !strings.HasSuffix(settings.IDlike, "%") {
+						settings.IDlike = settings.IDlike + "%"
+						fmt.Println(settings.IDlike)
+						fmt.Println("To turn off: .idlike %")
+					}
+				}
+			} else {
+				fmt.Printf("You must provide an id pattern, e.g. en%% or %%dedes%%\n")
+			}
+		}
+	case ".padding":
+		{
+			method = ".padding"
 			switch len(blocks) {
 			case 1:
 				{
 					fmt.Println("number |id                        |value")
 					fmt.Println("2433   |en_us_net~ps~psa44.v8.text| anointed you with the oil of joy elevating you above your co")
-					fmt.Println("The `padding` command controls the padding of the three parts of a concordance line shown as the result of the find command. The first padding is for the result number. The second and third paddings are for the id and value (or vice versa if vfirst = on). Padding values can be negative, in which case they are left aligned.  Positive values are right aligned.")
-					fmt.Printf("The current values are: %v\n", settings.padding)
+					fmt.Println("The `Padding` command controls the Padding of the three parts of a concordance line shown as the result of the find command. The first Padding is for the result number. The second and third paddings are for the id and value (or vice versa if Vfirst = on). Padding values can be negative, in which case they are left aligned.  Positive values are right aligned.")
+					fmt.Printf("The current values are: %v\n", settings.Padding)
 				}
 			case 2:
 				{
@@ -448,42 +507,53 @@ func executor(in string) {
 				}
 			}
 		}
-	case "set":
-		// TODO: when ltx struct is modified to have properties for create/modify date and by whom, need to set these here.
-		method = "set"
-		rec, err := mapper.ReadByLTK(context.library, context.topic, context.key)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			value := ""
-			if len(blocks) > 1 { // if len == 0, user wants to set value to blank
-				value = escape(strings.Join(blocks[1:len(blocks)], " "))
-			}
-			rec.SetValue(value)
-			mapper.Merge(rec)
-			fmt.Println(rec.Value)
-		}
-	case "vfirst":
+	case ".showempty":
 		{
-			method = "vfirst"
+			method = ".showempty"
 			if len(blocks) > 1 {
-				settings.vfirst = strings.Contains(strings.ToLower(blocks[1]), "on")
-				if settings.vfirst {
+				settings.ShowEmpty = strings.Contains(strings.ToLower(blocks[1]), "on")
+				if settings.ShowEmpty {
+					err := mapper.CaseSensitiveLike(true)
+					if err != nil {
+						fmt.Println(err)
+					}
+					fmt.Println("on")
+				} else {
+					err := mapper.CaseSensitiveLike(false)
+					if err != nil {
+						fmt.Println(err)
+					}
+					fmt.Println("off")
+				}
+			} else {
+				if settings.ShowEmpty {
+					fmt.Println(".showempty is on. The `find` command will include records with an empty value. To switch off: .showempty off")
+				} else {
+					fmt.Println(".showempty is off. The `find` command will exclude records with an empty value. To switch on: .showempty on")
+				}
+			}
+		}
+	case ".vfirst":
+		{
+			method = ".vfirst"
+			if len(blocks) > 1 {
+				settings.Vfirst = strings.Contains(strings.ToLower(blocks[1]), "on")
+				if settings.Vfirst {
 					fmt.Println("on")
 				} else {
 					fmt.Println("off")
 				}
 			} else {
-				if settings.vfirst {
-					fmt.Println("vfirst controls the output of the find command. `on` shows value, then id. `off` shows id, then value. match for find is on. To switch off: exact off")
+				if settings.Vfirst {
+					fmt.Println(".vfirst controls the output of the find command. `on` shows value, then id. `off` shows id, then value. match for find is on. To switch off: .vfirst off")
 				} else {
-					fmt.Println("Show value first for find is off. To switch on: vfirst on")
+					fmt.Println("Show value first for find is off. To switch on: .vfirst on")
 				}
 			}
 		}
-	case "width":
+	case ".width":
 		{
-			method = "width"
+			method = ".width"
 			switch len(blocks) {
 			case 2:
 				{
@@ -491,14 +561,46 @@ func executor(in string) {
 					if err != nil {
 						fmt.Println(err)
 					} else {
-						settings.width = i
+						settings.Width = i
 					}
 				}
 			default:
 				{
-					fmt.Println("`width` sets the width of the value shown using the `find` command.")
-					fmt.Printf("width = %d\n", settings.width)
+					fmt.Println("`Width` sets the Width of the value shown using the `find` command.")
+					fmt.Printf("Width = %d\n", settings.Width)
 				}
+			}
+		}
+	case ".settings":
+		{
+			method = ".settings"
+			var jsonData []byte
+			jsonData, err := json.Marshal(settings)
+			if err != nil {
+				log.Println(err)
+			}
+			fmt.Println(string(jsonData))
+		}
+	case ".sort":
+		{
+			method = ".sort"
+			if len(blocks) > 1 {
+				order := strings.ToLower(blocks[1])
+				switch order {
+				case "id":
+					settings.Sort = concord.SortId
+					fmt.Println("Sort by id is on")
+				case "left":
+					settings.Sort = concord.SortLeft
+					fmt.Println("Sort by left is on")
+				case "right":
+					settings.Sort = concord.SortRight
+					fmt.Println("Sort by right is on")
+				default:
+					fmt.Println("Invalid sort option. Use: .sort id or .sort left or .sort right")
+				}
+			} else {
+				fmt.Printf("%s. To change: .sort id or .sort left or .sort right\n", settings.Sort.String())
 			}
 		}
 	}
@@ -552,7 +654,7 @@ func setSuggestions() {
 		// Command
 		{"cd", "CHANGE path"},
 		{"cp", "COPY contents"},
-		{"exact", "EXACT on, EXACT off. If on, find will match case and accents."},
+		{"Exact", "EXACT on, EXACT off. If on, find will match case and accents."},
 		{"exit", "Exit Doxa Shell"},
 		{"find", "FIND records with specified value"},
 		{"get", "GET value for specified id, e.g. get en_us_dedes~actors~Priest"},
@@ -689,8 +791,10 @@ func escape(value string) string {
 	return value
 }
 
-// center keyword in middle, with window size = width for left and right
-func cline(line, key string, width int) string {
+// Centers keyword in middle, with window size = Width for left and right
+// And, add id, left, key, right to concordance map named cMap so we can Sort the lines
+// by parts.
+func cline(id, line, key string, width int) string {
 	r := []rune(line)
 	rKey := []rune(key)
 	keyIndex := indexInRune(r, key)
@@ -731,17 +835,23 @@ func cline(line, key string, width int) string {
 		}
 	}
 	right = fmt.Sprintf("%-*s", width-len(right), right)
+	var cl concord.ConcordanceLine
+	cl.ID = id
+	cl.Left = fmt.Sprintf("%*s", width+3, left)
+	cl.Key = key
+	cl.Right = right
+	cMap[cl.ID] = cl
 	return fmt.Sprintf("%*s%s%s", width+3, left, key, right)
 }
 
-// Problem: if we slice a string of Greek characters, because they are runes,
+// Find the index of a substring within []rune
+// This solves the following problem:
+// When we have a string of Greek, they are runes. If we take a slice,
 // we will get ? output for some characters.  The solution is to convert the
 // string to a []rune.  But, then, our search index won't work since the length
 // of the original string is > than the length of the []rune.
-// This function allows us to find the index of a substring within []rune
 func indexInRune(text []rune, what string) int {
 	whatRunes := []rune(what)
-
 	for i := range text {
 		found := true
 		for j := range whatRunes {
@@ -757,7 +867,7 @@ func indexInRune(text []rune, what string) int {
 	return -1
 }
 
-// converts parameter of paddings to int and stores in settings.padding for indicated index of 1..3
+// converts parameter of paddings to int and stores in settings.Padding for indicated index of 1..3
 func setPadding(index int, value string) {
 	i, err := strconv.Atoi(value)
 	if err != nil {
@@ -766,11 +876,11 @@ func setPadding(index int, value string) {
 	}
 	switch index {
 	case 1:
-		settings.padding.p1 = i
+		settings.Padding.P1 = i
 	case 2:
-		settings.padding.p2 = i
+		settings.Padding.P2 = i
 	case 3:
-		settings.padding.p3 = i
+		settings.Padding.P3 = i
 	default:
 		fmt.Printf("Invalid index %d passed to func setPadding\n", index)
 	}
@@ -792,4 +902,3 @@ func setContextId(id models.Id) {
 		fmt.Printf("setContextId parse error. Expected library, topic, key\n")
 	}
 }
-

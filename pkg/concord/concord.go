@@ -12,7 +12,15 @@ const (
 )
 type Order int
 var SortOrder Order
-
+func (o *Order) String() string {
+	var s string
+	switch SortOrder {
+	case SortId: s = "id"
+	case SortLeft: s = "left"
+	case SortRight: s = "Right"
+	}
+	return s
+}
 type ConcordanceLine struct {
 	ID    string
 	Right string

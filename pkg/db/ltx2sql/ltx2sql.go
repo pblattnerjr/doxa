@@ -129,9 +129,9 @@ func (m *LtxMapper) ReadByTK(topic, key string, returnEmpty bool) ([]*models.Ltx
 // substring is what is being searched for.
 func (m *LtxMapper) ReadByValue(id, substring string) ([]*models.Ltx, error) {
 	if len(id) > 0 {
-		return m.Query("value like $1", true, id, fmt.Sprintf("%%%s%%", substring))
+		return m.Query("id LIKE $1 and value LIKE $2 ESCAPE '\\'", true, id, fmt.Sprintf("%%%s%%", substring))
 	} else {
-		return m.Query("value like $1", true, fmt.Sprintf("%%%s%%", substring))
+		return m.Query("value like $1 ESCAPE '\\'", true, fmt.Sprintf("%%%s%%", substring))
 	}
 }
 // Read (by NNP) returns a struct populated by reading the database table for the specified substring in the nnp column.
@@ -393,4 +393,8 @@ func (m *LtxMapper) CountKeys(library, topic, key string) (int, error) {
 	}
 	err = rows.Err()
 	return count, err
+}
+func (m *LtxMapper) CaseSensitiveLike(on bool) error {
+	_,err := m.DB.Exec("PRAGMA case_sensitive_like = true;")
+	return err
 }
