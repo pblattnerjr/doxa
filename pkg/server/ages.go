@@ -40,7 +40,7 @@ const HtmlTemplate = `<!DOCTYPE HTML>
 		{{range .}}
 			<tr>
 			  <td style="padding: 1em; border: 1px solid #cccccc;">{{.ID}}</td>
-			  <td style="padding: 1em; border: 1px solid #cccccc;">{{.Value}}</td>
+			  <td style="padding: 1em; border: 1px solid #cccccc;">{{.Left}}</td>
 			</tr>
 		{{end}}
       <tbody>

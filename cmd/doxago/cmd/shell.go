@@ -200,7 +200,7 @@ func executor(in string) {
 					showValue(context.library, context.topic, context.key)
 				} else {
 					revertContext()
-					fmt.Printf("%s not found\n",blocks[1])
+					fmt.Printf("%s not found\n", blocks[1])
 				}
 			} else {
 				reportCount()
@@ -250,10 +250,10 @@ func executor(in string) {
 				fmt.Println("You must tell me what value to find")
 			} else {
 				value := escape(strings.Join(blocks[1:len(blocks)], " "))
-				if strings.Contains(value,"%") {
+				if strings.Contains(value, "%") {
 					// at this time, it is unlikely that there is a % in liturgical text.
 					// But, just in case, we will escape the percent
-					value = strings.ReplaceAll(value,"%","\\%")
+					value = strings.ReplaceAll(value, "%", "\\%")
 				}
 				var recs []*models.Ltx
 				var err error
@@ -281,9 +281,9 @@ func executor(in string) {
 					id = sb.String()
 				}
 				if settings.exact {
-					recs, err = mapper.ReadByValue(id,value)
+					recs, err = mapper.ReadByValue(id, value)
 				} else {
-					recs, err = mapper.ReadByNNP(id,value)
+					recs, err = mapper.ReadByNNP(id, value)
 				}
 				if err != nil {
 					fmt.Println(err)
@@ -328,10 +328,10 @@ func executor(in string) {
 					fmt.Println("idlike turned off")
 				} else {
 					settings.idlike = blocks[1]
-					if ! strings.HasPrefix(settings.idlike,"%") {
+					if !strings.HasPrefix(settings.idlike, "%") {
 						settings.idlike = "%" + settings.idlike
 					}
-					if ! strings.HasSuffix(settings.idlike, "%") {
+					if !strings.HasSuffix(settings.idlike, "%") {
 						settings.idlike = settings.idlike + "%"
 						fmt.Println(settings.idlike)
 						fmt.Println("To turn off: idlike %")
@@ -370,7 +370,7 @@ func executor(in string) {
 						d.Parse(library)
 						id.Domain = d
 						idMap[i+1] = id
-						fmt.Printf("%4d %s\n",i+1,library)
+						fmt.Printf("%4d %s\n", i+1, library)
 					}
 				}
 			case 1:
@@ -390,7 +390,7 @@ func executor(in string) {
 						id.Domain = d
 						id.Topic = topic
 						idMap[i+1] = id
-						fmt.Printf("%4d %s\n",i+1,topic)
+						fmt.Printf("%4d %s\n", i+1, topic)
 					}
 				}
 			case 2:
@@ -411,7 +411,7 @@ func executor(in string) {
 						id.Topic = context.topic
 						id.Key = key
 						idMap[i+1] = id
-						fmt.Printf("%4d %s\n",i+1,key)
+						fmt.Printf("%4d %s\n", i+1, key)
 					}
 				}
 			case 3:
@@ -697,7 +697,7 @@ func cline(line, key string, width int) string {
 	lineLen := len(r)
 	// get left context
 	leftIndex := 0
-	if keyIndex - width > 0 {
+	if keyIndex-width > 0 {
 		leftIndex = keyIndex
 		for i := keyIndex - 1; i > 0; i-- {
 			if leftIndex <= (keyIndex - width) {
@@ -722,7 +722,7 @@ func cline(line, key string, width int) string {
 		left = string(r[leftIndex:keyIndex])
 	}
 	left = fmt.Sprintf("%*s", width-len(left), left)
-	keyRight := keyIndex+len(rKey)
+	keyRight := keyIndex + len(rKey)
 	if keyRight < rightIndex && rightIndex <= len(r) {
 		right = string(r[keyRight:rightIndex])
 	} else {
@@ -731,8 +731,9 @@ func cline(line, key string, width int) string {
 		}
 	}
 	right = fmt.Sprintf("%-*s", width-len(right), right)
-	return fmt.Sprintf("%*s%s%s", width+3,left, key, right)
+	return fmt.Sprintf("%*s%s%s", width+3, left, key, right)
 }
+
 // Problem: if we slice a string of Greek characters, because they are runes,
 // we will get ? output for some characters.  The solution is to convert the
 // string to a []rune.  But, then, our search index won't work since the length
@@ -755,6 +756,7 @@ func indexInRune(text []rune, what string) int {
 	}
 	return -1
 }
+
 // converts parameter of paddings to int and stores in settings.padding for indicated index of 1..3
 func setPadding(index int, value string) {
 	i, err := strconv.Atoi(value)
@@ -790,3 +792,4 @@ func setContextId(id models.Id) {
 		fmt.Printf("setContextId parse error. Expected library, topic, key\n")
 	}
 }
+
