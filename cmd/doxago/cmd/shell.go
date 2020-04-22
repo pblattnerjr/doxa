@@ -70,6 +70,7 @@ func init() {
 
 var mapper = ltx2sql.LtxMapper{}
 var cMap map[string]concord.ConcordanceLine
+var commands []prompt.Suggest
 var suggestions []prompt.Suggest
 var pathDelimiter = mapper.IDDelimiter()
 type Padding struct {
@@ -79,6 +80,7 @@ type Padding struct {
 }
 type Settings struct {
 	Exact     bool          `json:".exact"`
+	Hints     bool          `json:".hints"`
 	IDlike    string        `json:".idlike"`
 	Padding   Padding       `json:".padding"`
 	Width     int           `json:".width"`
@@ -235,6 +237,9 @@ func executor(in string) {
 			if context.Depth() == 3 {
 				if exists(context.Library, context.Topic, context.Key) {
 					showValue(context.Library, context.Topic, context.Key)
+					if settings.Hints {
+						fmt.Printf("Hint: cmp to compare values for records with topic/key = %s/%s\n",context.Topic, context.Library)
+					}
 				} else {
 					revertContext()
 					fmt.Printf("%s not found\n", blocks[1])
@@ -262,10 +267,17 @@ func executor(in string) {
 					fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
 					fmt.Println(rec.Value)
 				}
+				if settings.Hints {
+					l := len(idMap.Map)
+					fmt.Printf("\nHint: cd {number} to change directory, e.g. cd %d to change to %s\n", l, idMap.Map[l-1].ToPath())
+				}
 			} else {
 				fmt.Println("You must be three levels deep to use this command.")
 			}
 		}
+	case "exit":
+		fmt.Println("Bye!")
+		os.Exit(0)
 	case "find":
 		{
 			method = "find"
@@ -357,10 +369,22 @@ func executor(in string) {
 						fmt.Printf(".idlike = %s, so current path was not used. To turn off: idlike %%", settings.IDlike)
 					}
 					fmt.Println("")
-
+					if settings.Hints {
+						fmt.Printf("Hint: use cd {number} to change directory to a library/topic/key, e.g. cd %d\n",2322)
+					}
 				}
 			}
 		}
+	case "help":
+		for _, command := range commands {
+			fmt.Printf("%s:\t%s\n",command.Text, command.Description)
+		}
+		fmt.Println("")
+		fmt.Println("Commands that start with a dot are for the settings.")
+		fmt.Println("The settings affect the way the other commands behave.")
+		fmt.Printf("As you type, suggestions will appear as a pop up.\nTab to set focus on the pop up.\nYou can scroll up or down using the arrow keys.\nUse the <Enter> key to select an item in the pop up.\n")
+		fmt.Println("You can also use the up and down keys to scroll through previously issued commands.")
+		return
 	case "lml":
 		if context.Depth() == 3 {
 			msg := fmt.Sprintf(`"%s%s%s"`,context.Topic, pathDelimiter, context.Key)
@@ -436,6 +460,9 @@ func executor(in string) {
 						idMap.Add(i+1, id.ToSQLId())
 						fmt.Printf("%4d %s\n", i+1, library)
 					}
+					if settings.Hints {
+						fmt.Printf("Hint: use cd {number} to change directory to that library, e.g. cd %d\n",len(libraries))
+					}
 				}
 			case 1:
 				{ // list topics for current library
@@ -455,6 +482,9 @@ func executor(in string) {
 						id.Topic = topic
 						idMap.Add(i+1, id.ToSQLId())
 						fmt.Printf("%4d %s\n", i+1, topic)
+					}
+					if settings.Hints {
+						fmt.Printf("Hint: use cd {number} to change directory to a library/topic, e.g. cd %d\n",len(topics))
 					}
 				}
 			case 2:
@@ -476,6 +506,9 @@ func executor(in string) {
 						id.Key = key
 						idMap.Add(i+1, id.ToSQLId())
 						fmt.Printf("%4d %s\n", i+1, key)
+					}
+					if settings.Hints {
+						fmt.Printf("Hint: use cd {number} to change directory to a library/topic/key, e.g. cd %d\n",len(keys))
 					}
 				}
 			case 3:
@@ -580,9 +613,32 @@ func executor(in string) {
 				}
 			}
 		}
-	case ".exit":
-		fmt.Println("Bye!")
-		os.Exit(0)
+	case ".hints":
+		{
+			method = ".hints"
+			if len(blocks) > 1 {
+				settings.Hints = strings.Contains(strings.ToLower(blocks[1]), "on")
+				if settings.Hints {
+					err := mapper.CaseSensitiveLike(true)
+					if err != nil {
+						fmt.Println(err)
+					}
+					fmt.Println("on")
+				} else {
+					err := mapper.CaseSensitiveLike(false)
+					if err != nil {
+						fmt.Println(err)
+					}
+					fmt.Println("off")
+				}
+			} else {
+				if settings.Hints {
+					fmt.Println("Hints are on. To switch off: .hints off")
+				} else {
+					fmt.Println("Exact match for find is off. To switch on: .hints on")
+				}
+			}
+		}
 	case ".idlike":
 		{
 			method = ".idlike"
@@ -779,39 +835,8 @@ func pushPath(segment string) string {
 }
 // Sets the values for the popup window that shows the users matching strings
 func setSuggestions() {
-	suggestions = []prompt.Suggest{
-		// Command
-		{"cd", "CHANGE path, e.g. cd gr_gr_cog/actors or cd gr_gr_cog/actors/Priest"},
-		{"cd ..", "CHANGE path up one level"},
-		{"cd ../..", "CHANGE path up two levels"},
-		{"cd ~", "CHANGE path to root"},
-		{"cd {number}", "After a find or ls, numbers can be used to change path, e.g. cd 244"},
-		{"cmp", "compare values for this topic/key. Must be 3 levels deep."},
-		{"cp", "COPY contents"},
-		{"find", "FIND records with specified value"},
-		{"lml", "Display topic/key in the format required for the Liturgical Markup Language."},
-		{"ls", "LIST contents. If at root, lists libraries. If 3 levels deep shows record value"},
-		{"mv", "MOVE (rename) matching id to new id"},
-		{"rm", "REMOVE for matching id"},
-		{".context", "Shows the current context, i.e. the current path"},
-		{".exact off", "If EXACT off, find is insensitive to case and accents and punctuation."},
-		{".exact on", "If EXACT on, find will match case and accents."},
-		{".exit", "Exit Doxa Shell"},
-		{".idlike", "Sets pattern of id for subsequent finds, e.g. .idlike en will only match ids starting with en"},
-		{".padding", "Sets the padding for concordance line parts."},
-		{".set comment", "SET comment for current record. Must be 3 levels deep."},
-		{".set redirect", "SET redirect for current record. Must be 3 levels deep."},
-		{".set value", "SET value for current record. Must be 3 levels deep."},
-		{".settings", "Display the values of the settings"},
-		{".showall off", "Show only the value of the record"},
-		{".showall on", "Show the entire record"},
-		{".showempty", "Show records where both the value and redirect are empty"},
-		{".showempty on", "Show the entire record"},
-		{".sort id", "Results of Find will be sorted by record ID"},
-		{".sort left", "Results of Find will be sorted by left part of concordance line"},
-		{".sort right", "Results of Find will be sorted by right part of concordance line"},
-		{".width", "Sets the width of left and right sides of concordance line"},
-	}
+	suggestions = []prompt.Suggest{}
+	appendCommands()
 	switch context.Depth() {
 	case 0:
 		appendLibraries()
@@ -822,6 +847,47 @@ func setSuggestions() {
 	}
 }
 
+// add commands to suggestions
+func appendCommands() {
+	commands = []prompt.Suggest{
+		// Command
+		{"cd", "CHANGE path, e.g. cd gr_gr_cog/actors or cd gr_gr_cog/actors/Priest"},
+		{"cd ..", "CHANGE path up one level"},
+		{"cd ../..", "CHANGE path up two levels"},
+		{"cd ~", "CHANGE path to root"},
+		{"cd {number}", "After a find or ls, numbers can be used to change path, e.g. cd 244"},
+		{"cmp", "compare values for this topic/key. Must be 3 levels deep."},
+		{"cp", "COPY contents"},
+		{"exit", "Exit Doxago Shell"},
+		{"find", "FIND records with specified value"},
+		{"lml", "Display topic/key in the format required for the Liturgical Markup Language."},
+		{"ls", "LIST contents. If at root, lists libraries. If 3 levels deep shows record value"},
+		{"mv", "MOVE (rename) matching id to new id"},
+		{"rm", "REMOVE for matching id"},
+		{"set comment", "SET comment for current record. Must be 3 levels deep."},
+		{"set redirect", "SET redirect for current record. Must be 3 levels deep."},
+		{"set value", "SET value for current record. Must be 3 levels deep."},
+		{".context", "Shows the current context, i.e. the current path"},
+		{".exact off", "If EXACT off, find is insensitive to case and accents and punctuation."},
+		{".exact on", "If EXACT on, find will match case and accents."},
+		{".hints off", "If HINTS off, no explanations will be given about what you can do next."},
+		{".hints on", "If HINTS on, explanations of what you can do next will be displayed."},
+		{".idlike", "Sets pattern of id for subsequent finds, e.g. .idlike en will only match ids starting with en"},
+		{".padding", "Sets the padding for concordance line parts."},
+		{".settings", "Display the values of the settings"},
+		{".showall off", "Show only the value of the record"},
+		{".showall on", "Show the entire record"},
+		{".showempty", "Show records where both the value and redirect are empty"},
+		{".showempty on", "Show the entire record"},
+		{".sort id", "Results of Find will be sorted by record ID"},
+		{".sort left", "Results of Find will be sorted by left part of concordance line"},
+		{".sort right", "Results of Find will be sorted by right part of concordance line"},
+		{".width", "Sets the width of left and right sides of concordance line"},
+	}
+	for _, command := range commands {
+		suggestions = append(suggestions, command)
+	}
+}
 // get list of libraries from the database and append to suggestions
 func appendLibraries() {
 	libraries, err := mapper.Libraries()
