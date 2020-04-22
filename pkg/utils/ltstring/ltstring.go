@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode"
 )
+const idDelimiter = "/"
 
 // Converts text to a Normalized form with no punctuation. It will be lowercase with no diacritics or punctuation.
 func ToNnp(text string) string {
@@ -32,7 +33,7 @@ func ToNwp(text string) string {
 
 // Merge canonical OLW ID from supplied parts
 func ToId(lang string, country string, realm string, topic string, key string) string {
-	return ToDomain(lang, country, realm) + "~" + topic + "~" + key
+	return ToDomain(lang, country, realm) + idDelimiter + topic + idDelimiter + key
 }
 
 // Merge canonical OLW domain (aka library) from parts

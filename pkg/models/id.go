@@ -13,6 +13,10 @@ type Id struct {
 	Topic string
 	Key string
 }
+const IDDelimiter = "/"
+func (i Id) IDDelimiter() string {
+	return IDDelimiter
+}
 func (i Id) IsEmpty() bool {
 	return len(i.Domain.Country) == 0
 }
@@ -22,6 +26,10 @@ func (i Id) HasValues() bool {
 // Convert the ID to the format used in the OLW Neo4j database
 func (i Id) ToNeoId() string {
 	return fmt.Sprintf("%s~%s~%s", i.Domain.ToNeo(), i.Topic, i.Key)
+}
+// Convert the ID to the format used in the OLW Neo4j database
+func (i Id) ToSQLId() string {
+	return fmt.Sprintf("%s%s%s%s%s", i.Domain.ToNeo(), IDDelimiter, i.Topic, IDDelimiter, i.Key)
 }
 // Merge an Ares filename from the ID parts,
 // e.g. actors_gr_GR_cog.ares
@@ -43,10 +51,10 @@ func (i *Id) Set(library, topic, key string) error {
 	i.Key = key
 	return nil
 }
-// Parses a tilde delimited id into its parts: domain (aka library), topic, and key
+// Parses a delimited id into its parts: domain (aka library), topic, and key
 func (i *Id) Parse(id string) error {
 	var err error
-	parts := strings.Split(id, "~")
+	parts := strings.Split(id, IDDelimiter)
 	if len(parts) == 3 {
 		var d Domain
 		d.Parse(parts[0])

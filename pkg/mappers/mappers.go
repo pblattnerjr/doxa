@@ -5,6 +5,7 @@ import (
 	"github.com/liturgiko/doxa/pkg/models"
 	"github.com/liturgiko/doxa/pkg/utils/ares"
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
+	"time"
 )
 
 // Converts a stream of LineParts into Ltx structs
@@ -20,6 +21,7 @@ func Lp2Lt(in <-chan *ares.LineParts) <-chan *models.Ltx {
 				lineParts.Topic,
 				lineParts.Key,
 			)
+			ltx.Library = ltstring.ToDomain(lineParts.Language, lineParts.Country, lineParts.Realm)
 			ltx.Topic = lineParts.Topic
 			ltx.Key = lineParts.Key
 
@@ -34,6 +36,9 @@ func Lp2Lt(in <-chan *ares.LineParts) <-chan *models.Ltx {
 			if lineParts.IsRedirect {
 				ltx.Redirect = lineParts.Redirect
 			}
+			timestamp := time.Now().UTC().String()
+			ltx.CreatedWhen = timestamp
+			ltx.ModifiedWhen = timestamp
 			out <- &ltx
 		}
 		close(out)

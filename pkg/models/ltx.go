@@ -16,22 +16,27 @@ import (
 	"strings"
 )
 
+const idDelimiter = "/"
+
 // Struct for liturgical text
 // This struct deliberately breaks the rules of
 // normalization by redundantly including the
-// topic and key as separate fields, and in the
+// library, topic, and key as separate fields, and in the
 // ID field. This is for convenience when creating
 // queries.  The Active Record Pattern is used for CRUD operations
 // on this struct via receiver functions.
 type Ltx struct {
-	ID       string
-	Topic    string
-	Key      string
-	Value    string
-	NNP      string
-	NWP      string
-	Comment  string
-	Redirect string
+	ID           string `json:"id"`
+	Library      string  `json:"library"`
+	Topic        string  `json:"topic"`
+	Key          string  `json:"key"`
+	Value        string  `json:"value"`
+	NNP          string  `json:"nnp"`
+	NWP          string  `json:"nwp"`
+	Comment      string  `json:"comment"`
+	Redirect     string  `json:"redirect"`
+	CreatedWhen  string  `json:"createdWhen"`
+	ModifiedWhen string  `json:"modifiedWhen"`
 }
 // An array of liturgical text records
 type LtxArray []Ltx
@@ -45,14 +50,17 @@ COMMIT;`
 
 // Schema to create Ltx
 var LtxSchema = `CREATE TABLE IF NOT EXISTS ltx (
-    id       TEXT PRIMARY KEY,
-    topic    TEXT,
-    key      TEXT,
-    value    TEXT,
-    nnp      TEXT,
-    nwp      TEXT,
-    comment  TEXT,
-    redirect TEXT,
+    id            TEXT PRIMARY KEY,
+    library       TEXT,
+    topic         TEXT,
+    key           TEXT,
+    value         TEXT,
+    nnp           TEXT,
+    nwp           TEXT,
+    comment       TEXT,
+    redirect      TEXT,
+    createdWhen   TEXT,
+    modifiedWhen  TEXT,
     FOREIGN KEY(redirect) REFERENCES ltx(id));`
 
 // SQL to insert Ltx into database.
@@ -61,7 +69,7 @@ var LtxSQLInsert = `INSERT OR REPLACE INTO ltx (id, topic, key, value, nnp, nwp,
 
 // SQL for load of db via .read
 // This is used when we are creating a database by reading ares files.
-var ReadSQLInsert = "INSERT INTO ltx VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');\n"
+var ReadSQLInsert = "INSERT INTO ltx VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');\n"
 
 // SQL to find Ltx by ID.
 // Because sometimes the value is empty and instead there is a redirect,
@@ -127,9 +135,9 @@ func (l Ltx) ToId() (Id, error) {
 	if len(l.ID) == 0 {
 		return result, errors.New("error: ID is empty")
 	}
-	parts := strings.Split(l.ID, "~")
+	parts := strings.Split(l.ID, idDelimiter)
 	if len(parts) != 3 {
-		return result, errors.New("error: ID does not have two ~ delimiters")
+		return result, errors.New("error: ID does not have two delimiters")
 	}
 	domainParts := strings.Split(parts[0],"_")
 	if len(domainParts) != 3 {
@@ -207,7 +215,6 @@ func (l *Ltx) SetRedirect(to string) {
 		l.SetValue("")
 	}
 }
-// NewLtx returns a new Ltx instance.  It normalizes the value so the
 // nnp and nwp properties are set correctly.
 func NewLtx(library, topic, key, value, comment, redirect string) *Ltx {
 	d := Domain{}

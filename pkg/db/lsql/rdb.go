@@ -73,7 +73,7 @@ func AresGithub2Sqlite(
 				logger.Println(fmt.Sprintf("Duplicate ID: %s", ltx.ID))
 			} else { // write sql for unique id
 				idMap[ltx.ID] = true
-				_, err = tx.Exec(fmt.Sprintf(models.ReadSQLInsert, ltx.ID, ltx.Topic, ltx.Key, strings.ReplaceAll(ltx.Value, "'", "''"), strings.ReplaceAll(ltx.NNP, "'", "''"), strings.ReplaceAll(ltx.NWP, "'", "''"), strings.ReplaceAll(ltx.Comment, "'", "''"), ltx.Redirect))
+				_, err = tx.Exec(fmt.Sprintf(models.ReadSQLInsert, ltx.ID, ltx.Library, ltx.Topic, ltx.Key, strings.ReplaceAll(ltx.Value, "'", "''"), strings.ReplaceAll(ltx.NNP, "'", "''"), strings.ReplaceAll(ltx.NWP, "'", "''"), strings.ReplaceAll(ltx.Comment, "'", "''"), ltx.Redirect, ltx.CreatedWhen, ltx.ModifiedWhen))
 				check(err,logger)
 			}
 		}
@@ -107,7 +107,7 @@ func AresDir2Sqlite(
 		// pipeline: each line of each file of each repo is processed as follows...
 		// Ares2LpFromLocalDir -> LineParts -> Lp2Lt -> Ltx, which is then written to sqlite
 		for ltx := range mappers.Lp2Lt(repos.Ares2LpFromLocalDir(rootDir, "ares", printProgress, logger)) {
-			_, err := db.Exec(models.LtxSQLInsert, ltx.ID, ltx.Topic, ltx.Key, ltx.Value, ltx.NNP, ltx.NWP, ltx.Comment, ltx.Redirect)
+			_, err := db.Exec(models.LtxSQLInsert, ltx.ID, ltx.Library, ltx.Topic, ltx.Key, ltx.Value, ltx.NNP, ltx.NWP, ltx.Comment, ltx.Redirect, ltx.CreatedWhen, ltx.ModifiedWhen)
 			if err != nil {
 				if strings.HasPrefix(err.Error(), "UNIQUE") {
 					logger.Printf("duplicate key: %s ", ltx.ID)
@@ -125,3 +125,4 @@ func check(err error, logger *log.Logger) {
 		logger.Println(err.Error())
 	}
 }
+

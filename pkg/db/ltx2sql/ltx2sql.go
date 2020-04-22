@@ -25,8 +25,11 @@ import (
 	"github.com/liturgiko/doxa/pkg/models"
 	"strconv"
 	"strings"
+	"time"
 )
 // TODO: the various functions in ltx and rdb that handle database transactions need to be moved here
+
+const IDDelimiter = "/"
 
 type LtxMapper struct {
 	DB *sql.DB
@@ -34,22 +37,25 @@ type LtxMapper struct {
 // SQL to create the table schema for the struct.  If the table exists,
 // it will be left untouched.
 var SQLCreateTable = `CREATE TABLE IF NOT EXISTS ltx (
-    id       TEXT PRIMARY KEY,
-    topic    TEXT,
-    key      TEXT,
-    value    TEXT,
-    nnp      TEXT,
-    nwp      TEXT,
-    comment  TEXT,
-    redirect TEXT,
+    id            TEXT PRIMARY KEY,
+    library       TEXT,
+    topic         TEXT,
+    key           TEXT,
+    value         TEXT,
+    nnp           TEXT,
+    nwp           TEXT,
+    comment       TEXT,
+    redirect      TEXT,
+    createdWhen   TEXT,
+    modifiedWhen  TEXT,
     FOREIGN KEY(redirect) REFERENCES ltx(id));`
 
 // SQL to insert a row for the struct into a database.
-var sqlInsert = `INSERT INTO ltx (id, topic, key, value, nnp, nwp, comment, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+var sqlInsert = `INSERT INTO ltx (id, library, topic, key, value, nnp, nwp, comment, redirect, createdWhen, modifiedWhen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 // SQL to insert or replace (merge) a row for the struct into database.
 //  This is used for insertions in an existing database where you want a row to be created if it does not exist, or to be replaced if it does.
-var SQLMerge = `INSERT OR REPLACE INTO ltx (id, topic, key, value, nnp, nwp, comment, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+var SQLMerge = `INSERT OR REPLACE INTO ltx (id, library, topic, key, value, nnp, nwp, comment, redirect, createdWhen, modifiedWhen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 // SQL to delete a record by id
 var SQLDelete = `DELETE ltx WHERE id = $1`
@@ -71,13 +77,17 @@ type Redirect struct {
 	ID       string
 	Redirect string
 }
+// Get the delimiter used in Database IDs
+func (m *LtxMapper) IDDelimiter() string {
+	return IDDelimiter
+}
 // Database column names for the struct.  Must correspond to the Fields() interface below
 func (m *LtxMapper) Columns() string {
-	return "id, topic, key, value, nnp, nwp, comment, redirect"
+	return "id, library, topic, key, value, nnp, nwp, comment, redirect, createdWhen, modifiedWhen"
 }
 // Struct properties (fields).  Must correspond to the Columns() above
 func (m *LtxMapper) Fields(l *models.Ltx) []interface{} {
-	return []interface{}{&l.ID, &l.Topic, &l.Key, &l.Value, &l.NNP, &l.NWP, &l.Comment, &l.Redirect}
+	return []interface{}{&l.ID, &l.Library, &l.Topic, &l.Key, &l.Value, &l.NNP, &l.NWP, &l.Comment, &l.Redirect, &l.CreatedWhen, &l.ModifiedWhen}
 }
 // TODO: test this function
 // BulkInsert uses a db transaction and commit to insert a stream of ltx into a database
@@ -89,7 +99,7 @@ func (m *LtxMapper) BulkInsert(in <-chan *models.Ltx) error {
 	}
 	go func() error {
 		for l := range in {
-			_, err = tx.Exec(SQLMerge, l.ID, l.Topic, l.Key, l.Value, l.NNP, l.NWP, l.Comment, l.Redirect)
+			_, err = tx.Exec(SQLMerge, l.ID, l.Library, l.Topic, l.Key, l.Value, l.NNP, l.NWP, l.Comment, l.Redirect, l.CreatedWhen, l.ModifiedWhen)
 			if err != nil {
 				// TODO: do we need to abort for all types of errors?
 				return err
@@ -102,7 +112,8 @@ func (m *LtxMapper) BulkInsert(in <-chan *models.Ltx) error {
 }
 // Creates or updates a row from the struct in the database table using SQL MERGE
 func (m *LtxMapper) Merge(l *models.Ltx) error {
-	_, err := m.DB.Exec(SQLMerge, l.ID, l.Topic, l.Key, l.Value, l.NNP, l.NWP, l.Comment, l.Redirect)
+	l.ModifiedWhen = time.Now().UTC().String()
+	_, err := m.DB.Exec(SQLMerge, l.ID, l.Library, l.Topic, l.Key, l.Value, l.NNP, l.NWP, l.Comment, l.Redirect, l.CreatedWhen, l.ModifiedWhen)
 	return err
 }
 // Read (by id) returns a struct populated by reading the database table for the specified id
@@ -111,7 +122,7 @@ func (m *LtxMapper) ReadById(id string) (*models.Ltx, error) {
 }
 // Read (by library, topic, and key) returns a struct populated by reading the database table for the specified library, topic, and key
 func (m *LtxMapper) ReadByLTK(library, topic, key string) (*models.Ltx, error) {
-	recs, err := m.Query("id = $1", true, fmt.Sprintf("%s~%s~%s", library, topic, key))
+	recs, err := m.Query("id = $1", true, fmt.Sprintf("%s%s%s%s%s", library,IDDelimiter, topic, IDDelimiter,key))
 	if len(recs) > 0 {
 		return recs[0], err
 	} else {
@@ -121,11 +132,11 @@ func (m *LtxMapper) ReadByLTK(library, topic, key string) (*models.Ltx, error) {
 }
 // Read (by library and topic) returns a struct populated by reading the database table for the specified library and topic
 func (m *LtxMapper) ReadByLT(library, topic string, returnEmpty bool) ([]*models.Ltx, error) {
-	return m.Query("id like $1", returnEmpty, fmt.Sprintf("%s~%s~%%", library, topic))
+	return m.Query("id like $1", returnEmpty, fmt.Sprintf("%s%s%s%s%%", library, IDDelimiter, topic, IDDelimiter))
 }
 // Read (by topic and key) returns a struct populated by reading the database table for the specified topic and key
 func (m *LtxMapper) ReadByTK(topic, key string, returnEmpty bool) ([]*models.Ltx, error) {
-	return m.Query("id like $1", returnEmpty, fmt.Sprintf("%%~%s~%s", topic, key))
+	return m.Query("id like $1", returnEmpty, fmt.Sprintf("%%%s%s%s%s", IDDelimiter, topic, IDDelimiter, key))
 }
 // Read (by value) returns a struct populated by reading the database table for the specified substring in the value column.
 // Note that the value property stores a text value unchanged.  This means it preserves punctuation and accents.
@@ -214,8 +225,7 @@ func (m *LtxMapper) Query(c string, returnEmpty bool, v ...interface{}) ([] *mod
 // Returns an array of the libraries found in the database
 func (m *LtxMapper) Libraries() ([] string, error) {
 	var records []string
-//	rows, err := m.DB.Query("SELECT distinct topic AS Library FROM ltx ORDER BY topic;")
-	rows, err := m.DB.Query("SELECT distinct substr(id, 1, pos-1) AS library FROM (SELECT *, instr(id,\"~\") AS pos FROM ltx) ORDER BY id;")
+	rows, err := m.DB.Query("SELECT distinct library FROM ltx ORDER BY library;")
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -435,7 +445,8 @@ func (m *LtxMapper) CountTopics(library string) (int, error) {
 	var count int
 	var sb strings.Builder
 	sb.WriteString(library)
-	sb.WriteString("~%")
+	sb.WriteString(IDDelimiter)
+	sb.WriteString("%")
 	q := sb.String()
 	rows, err := m.DB.Query(SQLCountTopicsForLibrary, q)
 	if err != nil {
@@ -463,19 +474,19 @@ func (m *LtxMapper) CountKeys(library, topic, key string) (int, error) {
 	var sb strings.Builder
 	if len(key) > 0 {
 		sb.WriteString(library)
-		sb.WriteString("~")
+		sb.WriteString(IDDelimiter)
 		sb.WriteString(topic)
-		sb.WriteString("~")
+		sb.WriteString(IDDelimiter)
 		sb.WriteString(key)
 	} else if len(topic) > 0 {
 		sb.WriteString(library)
-		sb.WriteString("~")
+		sb.WriteString(IDDelimiter)
 		sb.WriteString(topic)
-		sb.WriteString("~")
+		sb.WriteString(IDDelimiter)
 		sb.WriteString("%")
 	} else {
 		sb.WriteString(library)
-		sb.WriteString("~")
+		sb.WriteString(IDDelimiter)
 		sb.WriteString("%")
 	}
 	rows, err := m.DB.Query(SQLCountIDLike, sb.String())

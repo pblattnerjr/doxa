@@ -71,7 +71,7 @@ func init() {
 var mapper = ltx2sql.LtxMapper{}
 var cMap map[string]concord.ConcordanceLine
 var suggestions []prompt.Suggest
-var pathDelimiter = "/" // strconv.QuoteRune(os.PathSeparator)
+var pathDelimiter = mapper.IDDelimiter()
 type Padding struct {
 	P1 int `json:"number"`
 	P2 int `json:"id"`
@@ -83,6 +83,7 @@ type Settings struct {
 	Padding   Padding       `json:".padding"`
 	Vfirst    bool          `json:".vfirst"`
 	Width     int           `json:".width"`
+	ShowAll   bool          `json:".showall"`
 	ShowEmpty bool          `json:".showempty"`
 	Sort      concord.Order `json:".sort"`
 }
@@ -104,7 +105,7 @@ var previousContext Context
 func (c *Context) DBPath() string {
 	id := models.Id{}
 	id.Set(c.Library, c.Topic, c.Key)
-	return id.ToNeoId()
+	return id.ToSQLId()
 }
 func (c *Context) SetPath() {
 	sb := strings.Builder{}
@@ -134,11 +135,11 @@ func (c *Context) Like() string {
 	like := ""
 	switch c.Depth() {
 	case 1:
-		like = c.Library + "~%"
+		like = c.Library + pathDelimiter + "%"
 	case 2:
-		like = c.Library + "~" + c.Topic + "~%"
+		like = c.Library + pathDelimiter + c.Topic + pathDelimiter + "%"
 	case 3:
-		like = c.Library + "~" + c.Topic + "~" + c.Key
+		like = c.Library + pathDelimiter + c.Topic + pathDelimiter + c.Key
 	}
 	return like
 }
@@ -212,16 +213,7 @@ func executor(in string) {
 				}
 			}
 		} else {
-			// For user convenience, if the user pasted a DB ID with tildes
-			// convert to /.  Because an initial tilde is an alias for $HOME
-			// we skip the first char when doing the replacement.
-			var path string
-			if strings.HasPrefix(blocks[1], "~") {
-				path = "~" + strings.ReplaceAll(blocks[1][1:], "~", "/")
-			} else {
-				path = strings.ReplaceAll(blocks[1], "~", "/")
-			}
-			up, dirs := cdParts(path)
+			up, dirs := cdParts(blocks[1])
 			if len(up) > 0 {
 				if up == "~" {
 					context.Path = resetPath()
@@ -266,7 +258,7 @@ func executor(in string) {
 				for i, rec := range recs {
 					idMap.Add(i+1, rec.ID)
 					fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
-					fmt.Printf("%4d %s", i+1, rec.ID)
+					fmt.Printf("%4d %s\n", i+1, rec.ID)
 					fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
 					fmt.Println(rec.Value)
 				}
@@ -306,17 +298,19 @@ func executor(in string) {
 					switch context.Depth() {
 					case 1:
 						sb.WriteString(context.Library)
-						sb.WriteString("~%")
+						sb.WriteString(pathDelimiter)
+						sb.WriteString("%")
 					case 2:
 						sb.WriteString(context.Library)
-						sb.WriteString("~")
+						sb.WriteString(pathDelimiter)
 						sb.WriteString(context.Topic)
-						sb.WriteString("~%")
+						sb.WriteString(pathDelimiter)
+						sb.WriteString("%")
 					case 3:
 						sb.WriteString(context.Library)
-						sb.WriteString("~")
+						sb.WriteString(pathDelimiter)
 						sb.WriteString(context.Topic)
-						sb.WriteString("~")
+						sb.WriteString(pathDelimiter)
 						sb.WriteString(context.Key)
 					}
 					id = sb.String()
@@ -342,9 +336,9 @@ func executor(in string) {
 					for i, res := range concord.SortedKeys(cMap, settings.Sort) {
 						idMap.Add(i+1, cMap[res].ID)
 						if len(strings.TrimSpace(cMap[res].ID)) > 50 {
-							parts := strings.Split(cMap[res].ID, "~")
+							parts := strings.Split(cMap[res].ID, pathDelimiter)
 							if len(parts) == 3 {
-								fmt.Printf("%*d |%s~%s~\n", settings.Padding.P1, i+1, parts[0], parts[1])
+								fmt.Printf("%*d |%s%s%s%s\n", settings.Padding.P1, i+1, parts[0], pathDelimiter, parts[1], pathDelimiter)
 								fmt.Printf("     | %*s | %-s%s%s\n", settings.Padding.P2, parts[2], cMap[res].Left, cMap[res].Key, cMap[res].Right)
 							} else {
 								// bad
@@ -369,7 +363,7 @@ func executor(in string) {
 		}
 	case "lml":
 		if context.Depth() == 3 {
-			msg := fmt.Sprintf(`"%s~%s"`,context.Topic, context.Key)
+			msg := fmt.Sprintf(`"%s%s%s"`,context.Topic, pathDelimiter, context.Key)
 			fmt.Println(msg)
 		} else {
 			fmt.Println("You must be three levels deep to use this command")
@@ -439,7 +433,7 @@ func executor(in string) {
 						var d models.Domain
 						d.Parse(library)
 						id.Domain = d
-						idMap.Add(i+1, id.ToNeoId())
+						idMap.Add(i+1, id.ToSQLId())
 						fmt.Printf("%4d %s\n", i+1, library)
 					}
 				}
@@ -447,7 +441,7 @@ func executor(in string) {
 				{ // list topics for current library
 					var like = context.Library
 					if len(blocks) > 1 {
-						like = like + "~" + blocks[1]
+						like = like + pathDelimiter + blocks[1]
 					}
 					topics, err := mapper.Topics(like)
 					if err != nil {
@@ -459,15 +453,15 @@ func executor(in string) {
 						d.Parse(context.Library)
 						id.Domain = d
 						id.Topic = topic
-						idMap.Add(i+1, id.ToNeoId())
+						idMap.Add(i+1, id.ToSQLId())
 						fmt.Printf("%4d %s\n", i+1, topic)
 					}
 				}
 			case 2:
 				{ // list keys for current library/topic
-					var like = context.Library + "~" + context.Topic
+					var like = context.Library + pathDelimiter + context.Topic
 					if len(blocks) > 1 {
-						like = like + "~" + blocks[1]
+						like = like + pathDelimiter + blocks[1]
 					}
 					keys, err := mapper.Keys(like)
 					if err != nil {
@@ -480,7 +474,7 @@ func executor(in string) {
 						id.Domain = d
 						id.Topic = context.Topic
 						id.Key = key
-						idMap.Add(i+1, id.ToNeoId())
+						idMap.Add(i+1, id.ToSQLId())
 						fmt.Printf("%4d %s\n", i+1, key)
 					}
 				}
@@ -501,18 +495,22 @@ func executor(in string) {
 		if err != nil {
 			fmt.Println(err)
 		} else {
-			var prompt = fmt.Sprintf("set what, to what?\nExample 1: set value PRIEST\nExample 2: set redirect gr_gr_cog/template.titles/d.onSaturdayEvening\nTo set blank: set value ''\nWhen setting to blank, use '' not \"\"")
+			var prompt = fmt.Sprintf("set what, to what?\nExample 1: set value PRIEST\nExample 2: set redirect gr_gr_cog/template.titles/d.onSaturdayEvening\nExample 3: set comment kairos prayer\nTo set blank: set value ''\nWhen setting to blank, use '' not \"\"")
 			value := ""
 			if len(blocks) > 1 {
 				if len(blocks) > 2 {
 					value = escape(strings.Join(blocks[2:len(blocks)], " "))
 					switch blocks[1] {
+					case "comment":
+						if value == "''" {
+							value = ""
+						}
+						rec.Comment = value
 					case "redirect":
 						if value == "''" {
 							value = ""
 							rec.SetRedirect(value)
 						} else {
-							value = strings.ReplaceAll(value, "/", "~") // in case user used / instead of ~
 							var id models.Id
 							id.Parse(value)
 							if exists(id.Domain.ToNeo(), id.Topic, id.Key) {
@@ -614,7 +612,7 @@ func executor(in string) {
 			case 1:
 				{
 					fmt.Println("number |id                        |value")
-					fmt.Println("2433   |en_us_net~ps~psa44.v8.text| anointed you with the oil of joy elevating you above your co")
+					fmt.Println("2433   |en_us_net/ps/psa44.v8.text| anointed you with the oil of joy elevating you above your co")
 					fmt.Println("The `Padding` command controls the Padding of the three parts of a concordance line shown as the result of the find command. The first Padding is for the result number. The second and third paddings are for the id and value (or vice versa if Vfirst = on). Padding values can be negative, in which case they are left aligned.  Positive values are right aligned.")
 					fmt.Printf("The current values are: %v\n", settings.Padding)
 				}
@@ -632,6 +630,24 @@ func executor(in string) {
 					setPadding(1, blocks[1])
 					setPadding(2, blocks[2])
 					setPadding(3, blocks[3])
+				}
+			}
+		}
+	case ".showall":
+		{
+			method = ".showall"
+			if len(blocks) > 1 {
+				settings.ShowAll = strings.Contains(strings.ToLower(blocks[1]), "on")
+				if settings.ShowAll {
+					fmt.Println("on")
+				} else {
+					fmt.Println("off")
+				}
+			} else {
+				if settings.ShowEmpty {
+					fmt.Println(".showall is on. When 3 levels deep, ls will show the entire record. To switch off: .showall off")
+				} else {
+					fmt.Println(".showall is off. When 3 levels deep, ls will only show the value. To see all record properties: .showall on")
 				}
 			}
 		}
@@ -785,11 +801,11 @@ func setSuggestions() {
 		{"Exact", "EXACT on, EXACT off. If on, find will match case and accents."},
 		{"exit", "Exit Doxa Shell"},
 		{"find", "FIND records with specified value"},
-		{"get", "GET value for specified id, e.g. get en_us_dedes~actors~Priest"},
+		{"get", "GET value for specified id, e.g. get en_us_dedes/actors/Priest"},
 		{"ls", "LIST contents"},
 		{"mv", "MOVE (rename) matching id to new id"},
 		{"rm", "REMOVE for matching id"},
-		{"set", "SET value for specified id, e.g. set en_us_dedes~actors~Priest=\"Priest\""},
+		{"set", "SET value for specified id, e.g. set en_us_dedes/actors/Priest=\"Priest\""},
 	}
 	switch context.Depth() {
 	case 0:
@@ -919,7 +935,16 @@ func showValue(library, topic, key string) {
 				idMap.Add(1, rec.Redirect)
 				showValue(id.Domain.ToNeo(), id.Topic, id.Key)
 			} else {
-				fmt.Println(rec.Value)
+				if settings.ShowAll {
+					var jsonData []byte
+					jsonData, err := json.Marshal(rec)
+					if err != nil {
+						log.Println(err)
+					}
+					fmt.Println(string(jsonData))
+				} else {
+					fmt.Println(rec.Value)
+				}
 			}
 		}
 	}
