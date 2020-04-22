@@ -1,6 +1,7 @@
 package ares
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,9 +10,15 @@ import (
 	"testing"
 )
 var fnp FilenameParts
+var suppressComments *bool
+var inArg *string
+var outArg *string
 
 func init() {
-fnp, _ = ParseAresFileName("actors_gr_gr_cog.ares")
+	fnp, _ = ParseAresFileName("actors_gr_gr_cog.ares")
+	suppressComments = flag.Bool("suppressComments",false,"suppress explanatory comments")
+	inArg = flag.String("in","ABC", "input file or folder")
+	outArg = flag.String("out","XYZ", "output file or folder")
 }
 
 // Test with key and value
@@ -253,46 +260,33 @@ func TestCleanAres(t *testing.T) {
 	dir, _ := filepath.Split(filename)
 	dir = filepath.Join(dir,"test")
 
-	var suppressComments bool
+	flag.Parse()
 
-	noCommentArg, success := os.LookupEnv("NOCOMMENT")
-	if !success {
-		fmt.Println("NOCOMMENT is not defined")
-	} else if noCommentArg == "true" {
-		suppressComments = true
-	} else {
-		suppressComments = false
-	}
-	fmt.Println("noCommentArg has value ", noCommentArg)
+	var in,out string
 
-	inArg, success := os.LookupEnv("IN")
-	if !success {
-		fmt.Println("IN is not defined")
+	if strings.ContainsAny(*inArg, ":/\\") { // full path
+		in = *inArg
 	} else {
-		fmt.Println("inArg has value ", inArg)
+		in = filepath.Join(dir, "in", *inArg)
 	}
-	outArg, success := os.LookupEnv("OUT")
-	if !success {
-		fmt.Println("OUT is not defined")
-	} else {
-		fmt.Println("outArg has value ", outArg)
-	}
-
-	//in := filepath.Join(dir,"in",inArg)
 	//in := filepath.Join(dir,"in","dismissals_gr_GR_cog.ares")
-	in := filepath.Join(dir,"in","testcases_en_EN_cog.ares")
+	//in := filepath.Join(dir,"in","testcases_en_EN_cog.ares")
 	//in := "C:\\Users\\paulbjr\\doxa\\repos\\ares\\AGES-Initiatives"
 
-	//out := filepath.Join(dir,"out",outArg)
+	if strings.ContainsAny(*outArg, ":/\\") { // full path
+		out = *outArg
+	} else {
+		out = filepath.Join(dir, "out", *outArg)
+	}
 	//out := filepath.Join(dir,"out","dismissals_gr_GR_cog.ares")
-	out := filepath.Join(dir,"out","testcases_en_EN_cog.ares")
+	//out := filepath.Join(dir,"out","testcases_en_EN_cog.ares")
 	//out := filepath.Join(dir,"out","root")
 
 	var walkErr error
 
 	fi, _ := os.Stat(in)
 	if !fi.IsDir() && strings.HasSuffix(in, ".ares") {
-		walkErr = CleanAres(in, out, suppressComments)  // processing a file, nor a directory
+		walkErr = CleanAres(in, out, *suppressComments)  // processing a file, nor a directory
 		if walkErr != nil {
 			allErrors = append(allErrors,walkErr)
 		} else {
@@ -307,12 +301,12 @@ func TestCleanAres(t *testing.T) {
 				fmt.Printf("prevent panic by handling failure accessing path %q: %v\n", path, err)
 				return err
 			} else {
-				fmt.Printf("process directory: %q\n", path)
+				//fmt.Printf("process directory: %q\n", path)
 				if !info.IsDir() && !strings.Contains(path, ".git") {
 					fname := info.Name()
 					if strings.HasSuffix(path, ".ares") {
 						fmt.Printf("clean file: %q on %q\n",fname, path)
-						walkErr = CleanAres(path, out + path[len(in):], suppressComments)
+						walkErr = CleanAres(path, out + path[len(in):], *suppressComments)
 						if walkErr != nil {
 							allErrors = append(allErrors,walkErr)
 						} else {
