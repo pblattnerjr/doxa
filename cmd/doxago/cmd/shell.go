@@ -81,7 +81,6 @@ type Settings struct {
 	Exact     bool          `json:".exact"`
 	IDlike    string        `json:".idlike"`
 	Padding   Padding       `json:".padding"`
-	Vfirst    bool          `json:".vfirst"`
 	Width     int           `json:".width"`
 	ShowAll   bool          `json:".showall"`
 	ShowEmpty bool          `json:".showempty"`
@@ -167,10 +166,11 @@ func (c *Context) GetPath() string {
 type IDMap struct {
 	Map map[int]models.Id
 }
-
+// Resets the map so it is empty
 func (im *IDMap) Reset() {
 	im.Map = make(map[int]models.Id)
 }
+// Adds a path to the map
 func (im *IDMap) Add(index int, path string) {
 	var id models.Id
 	id.Parse(strings.TrimSpace(path))
@@ -613,7 +613,7 @@ func executor(in string) {
 				{
 					fmt.Println("number |id                        |value")
 					fmt.Println("2433   |en_us_net/ps/psa44.v8.text| anointed you with the oil of joy elevating you above your co")
-					fmt.Println("The `Padding` command controls the Padding of the three parts of a concordance line shown as the result of the find command. The first Padding is for the result number. The second and third paddings are for the id and value (or vice versa if Vfirst = on). Padding values can be negative, in which case they are left aligned.  Positive values are right aligned.")
+					fmt.Println("The `Padding` command controls the Padding of the three parts of a concordance line shown as the result of the find command. The first Padding is for the result number. The second and third paddings are for the id and value). Padding values can be negative, in which case they are left aligned.  Positive values are right aligned.")
 					fmt.Printf("The current values are: %v\n", settings.Padding)
 				}
 			case 2:
@@ -677,24 +677,6 @@ func executor(in string) {
 				}
 			}
 		}
-	case ".vfirst":
-		{
-			method = ".vfirst"
-			if len(blocks) > 1 {
-				settings.Vfirst = strings.Contains(strings.ToLower(blocks[1]), "on")
-				if settings.Vfirst {
-					fmt.Println("on")
-				} else {
-					fmt.Println("off")
-				}
-			} else {
-				if settings.Vfirst {
-					fmt.Println(".vfirst controls the output of the find command. `on` shows value, then id. `off` shows id, then value. match for find is on. To switch off: .vfirst off")
-				} else {
-					fmt.Println("Show value first for find is off. To switch on: .vfirst on")
-				}
-			}
-		}
 	case ".width":
 		{
 			method = ".width"
@@ -710,7 +692,7 @@ func executor(in string) {
 				}
 			default:
 				{
-					fmt.Println("`Width` sets the Width of the value shown using the `find` command.")
+					fmt.Println("`Width` sets the Width of left and right parts of the concordance lines shown using the `find` command.")
 					fmt.Printf("Width = %d\n", settings.Width)
 				}
 			}
@@ -765,6 +747,7 @@ func completer(in prompt.Document) []prompt.Suggest {
 	}
 	return prompt.FilterHasPrefix(suggestions, w, true)
 }
+// moves up the path hierarchy
 func popPath(levels string) string {
 	l := len(strings.Split(levels, pathDelimiter))
 	s := len(strings.Split(context.Path, pathDelimiter))
@@ -783,6 +766,7 @@ func popPath(levels string) string {
 	}
 	return context.GetPath()
 }
+// Moves deeper down the path hierarchy
 func pushPath(segment string) string {
 	if len(context.Library) < 1 {
 		context.Library = segment
@@ -793,19 +777,40 @@ func pushPath(segment string) string {
 	}
 	return context.GetPath()
 }
+// Sets the values for the popup window that shows the users matching strings
 func setSuggestions() {
 	suggestions = []prompt.Suggest{
 		// Command
-		{"cd", "CHANGE path"},
+		{"cd", "CHANGE path, e.g. cd gr_gr_cog/actors or cd gr_gr_cog/actors/Priest"},
+		{"cd ..", "CHANGE path up one level"},
+		{"cd ../..", "CHANGE path up two levels"},
+		{"cd ~", "CHANGE path to root"},
+		{"cd {number}", "After a find or ls, numbers can be used to change path, e.g. cd 244"},
+		{"cmp", "compare values for this topic/key. Must be 3 levels deep."},
 		{"cp", "COPY contents"},
-		{"Exact", "EXACT on, EXACT off. If on, find will match case and accents."},
-		{"exit", "Exit Doxa Shell"},
 		{"find", "FIND records with specified value"},
-		{"get", "GET value for specified id, e.g. get en_us_dedes/actors/Priest"},
-		{"ls", "LIST contents"},
+		{"lml", "Display topic/key in the format required for the Liturgical Markup Language."},
+		{"ls", "LIST contents. If at root, lists libraries. If 3 levels deep shows record value"},
 		{"mv", "MOVE (rename) matching id to new id"},
 		{"rm", "REMOVE for matching id"},
-		{"set", "SET value for specified id, e.g. set en_us_dedes/actors/Priest=\"Priest\""},
+		{".context", "Shows the current context, i.e. the current path"},
+		{".exact off", "If EXACT off, find is insensitive to case and accents and punctuation."},
+		{".exact on", "If EXACT on, find will match case and accents."},
+		{".exit", "Exit Doxa Shell"},
+		{".idlike", "Sets pattern of id for subsequent finds, e.g. .idlike en will only match ids starting with en"},
+		{".padding", "Sets the padding for concordance line parts."},
+		{".set comment", "SET comment for current record. Must be 3 levels deep."},
+		{".set redirect", "SET redirect for current record. Must be 3 levels deep."},
+		{".set value", "SET value for current record. Must be 3 levels deep."},
+		{".settings", "Display the values of the settings"},
+		{".showall off", "Show only the value of the record"},
+		{".showall on", "Show the entire record"},
+		{".showempty", "Show records where both the value and redirect are empty"},
+		{".showempty on", "Show the entire record"},
+		{".sort id", "Results of Find will be sorted by record ID"},
+		{".sort left", "Results of Find will be sorted by left part of concordance line"},
+		{".sort right", "Results of Find will be sorted by right part of concordance line"},
+		{".width", "Sets the width of left and right sides of concordance line"},
 	}
 	switch context.Depth() {
 	case 0:
@@ -852,12 +857,15 @@ func appendKeys() {
 		suggestions = append(suggestions, prompt)
 	}
 }
+// Sets the path to be empty
 func resetPath() string {
 	context.Library = ""
 	context.Topic = ""
 	context.Key = ""
 	return context.GetPath()
 }
+// Converts a path into the pop and push parts
+// e.g. ../../actors/Priest has ../../ as the pop parts and actors/Priest as the push parts
 func cdParts(p string) (string, string) {
 	var cdU = strings.Builder{}
 	var cdD = strings.Builder{}
@@ -884,10 +892,12 @@ func cdParts(p string) (string, string) {
 	}
 	return u, d
 }
+// Verifies a record exists in the database for the specified library, topic, and key
 func exists(library, topic, key string) bool {
 	c, _ := mapper.CountKeys(library, topic, key)
 	return c == 1
 }
+// Gets the number of records that exist.  It is based on the depth of the path.
 func reportCount() {
 	if len(context.Path) > 0 {
 		p := message.NewPrinter(language.English)
@@ -905,18 +915,22 @@ func reportCount() {
 		}
 	}
 }
+// Copies the current context so it can be reverted if an error occurs
 func copyContext() {
 	previousContext.Library = context.Library
 	previousContext.Topic = context.Topic
 	previousContext.Key = context.Key
 	previousContext.Path = context.Path
 }
+// Revert the context to the values in previousContext
 func revertContext() {
 	context.Library = previousContext.Library
 	context.Topic = previousContext.Topic
 	context.Key = previousContext.Key
 	context.Path = previousContext.Path
 }
+// Show the value for the record with the matcing library, topic, and key.
+// If .showall is true, the json of the entire record will be shown.
 func showValue(library, topic, key string) {
 	rec, err := mapper.ReadByLTK(library, topic, key)
 	if err != nil {
@@ -949,6 +963,7 @@ func showValue(library, topic, key string) {
 		}
 	}
 }
+// escape quotes
 func escape(value string) string {
 	value = strconv.Quote(value)
 	// a side effect of strconv.Quote is it wraps the entire string in quotes,
@@ -1058,6 +1073,7 @@ func isNumber(s string) bool {
 		return false
 	}
 }
+// set the context Library, Topic, and Key using the id
 func setContextId(id models.Id) {
 	if id.HasValues() {
 		context.Library = id.Domain.ToNeo()
