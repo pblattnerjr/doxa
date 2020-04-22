@@ -66,6 +66,11 @@ var SQLTopicsForLibrary = `SELECT DISTINCT topic FROM ltx WHERE id LIKE $1 ORDER
 // SQL to get keys for a library and topic
 var SQLKeysForTopic = `SELECT DISTINCT key FROM ltx WHERE id LIKE $1 ORDER BY key COLLATE NOCASE ASC`
 
+// used to hold results of query for redirects that are not blank
+type Redirect struct {
+	ID       string
+	Redirect string
+}
 // Database column names for the struct.  Must correspond to the Fields() interface below
 func (m *LtxMapper) Columns() string {
 	return "id, topic, key, value, nnp, nwp, comment, redirect"
@@ -176,7 +181,7 @@ func (m *LtxMapper) QueryRow(c string, v ...interface{}) (*models.Ltx, error) {
 func (m *LtxMapper) Query(c string, returnEmpty bool, v ...interface{}) ([] *models.Ltx, error) {
 	var records []*models.Ltx
 
-	// TODO: need to modify the SQL to match the one in Ltx that does a join if redirect is populated
+	// TODO: need to modify the SQL to do a join if redirect is populated
 	q := fmt.Sprintf(`SELECT %s FROM ltx WHERE %s`, m.Columns(), c)
 	rows, err := m.DB.Query(q,v...)
 	if err != nil {
@@ -317,6 +322,104 @@ func (m *LtxMapper) Distinct(column, like string) ([] string, error) {
 		if len(item) > 0 {
 			records = append(records, item)
 		}
+	}
+	err = rows.Err()
+	return records, err
+}
+// Returns an array of the records with redirects
+func (m *LtxMapper) Redirects(like string) ([]Redirect, error) {
+	var records []Redirect
+	var q string
+	if len(like) > 0 {
+		q = fmt.Sprintf(`SELECT id, redirect FROM ltx WHERE id LIKE "%s" AND length(redirect) > 0 ORDER BY id;`, like)
+	} else {
+		q = fmt.Sprintf(`SELECT id, redirect FROM ltx WHERE length(redirect) > 0 ORDER BY id;`)
+	}
+	rows, err := m.DB.Query(q)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, to string
+		err = rows.Scan(&id,&to)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		if len(id) > 0 {
+			var redirect Redirect
+			redirect.ID = id
+			redirect.Redirect = to
+			records = append(records, redirect)
+		}
+	}
+	err = rows.Err()
+	return records, err
+}
+// Returns an array of the redirects to specified id
+func (m *LtxMapper) ReferredTo(by string) ([]Redirect, error) {
+	var records []Redirect
+	var q string = fmt.Sprintf(`SELECT id, redirect FROM ltx WHERE redirect = "%s" ORDER BY redirect;`, by)
+	rows, err := m.DB.Query(q)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, to string
+		err = rows.Scan(&id,&to)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		if len(id) > 0 {
+			var redirect Redirect
+			redirect.ID = id
+			redirect.Redirect = to
+			records = append(records, redirect)
+		}
+	}
+	err = rows.Err()
+	return records, err
+}
+// Returns an array of records with both value and redirect blank
+func (m *LtxMapper) Empty(like string) ([]string, error) {
+	var records []string
+	var q string
+	if len(like) > 0 {
+		q = fmt.Sprintf(`SELECT id FROM ltx WHERE id LIKE "%s" and length(value) = 0 and length(redirect) = 0 ORDER BY id;`, like)
+	} else {
+		q = fmt.Sprintf(`SELECT id FROM ltx WHERE length(value) = 0 and length(redirect) = 0 ORDER BY id;`)
+	}
+	rows, err := m.DB.Query(q)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item string
+		err = rows.Scan(&item)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil
+			}
+			return nil, err
+		}
+		records = append(records, item)
 	}
 	err = rows.Err()
 	return records, err

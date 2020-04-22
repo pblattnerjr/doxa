@@ -41,11 +41,22 @@ var shellCmd = &cobra.Command{
 		settings.Sort = concord.SortRight
 		settings.Width = 30
 
+		// Get the width and height of the terminal.
+		// We also do this whenever find is called in
+		// case it got resized.
+		tWidth, tHeight, err := terminal.GetSize(0)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			context.THeight = tHeight
+			context.TWidth = tWidth
+		}
+
 		setSuggestions()
 		p := prompt.New(
 			executor,
 			completer,
-			prompt.OptionPrefix(context.path+"> "),
+			prompt.OptionPrefix(context.Path+"> "),
 			prompt.OptionLivePrefix(livePrefix),
 			prompt.OptionTitle("doxa-shell"),
 		)
@@ -67,24 +78,24 @@ type Padding struct {
 	P3 int `json:"value"`
 }
 type Settings struct {
-	Exact   bool          `json:".exact"`
-	IDlike  string        `json:".idlike"`
-	Padding Padding       `json:".padding"`
-	Vfirst  bool          `json:".vfirst"`
-	Width   int           `json:".width"`
-	ShowEmpty bool `json:".showempty"`
-	Sort    concord.Order `json:".sort"`
+	Exact     bool          `json:".exact"`
+	IDlike    string        `json:".idlike"`
+	Padding   Padding       `json:".padding"`
+	Vfirst    bool          `json:".vfirst"`
+	Width     int           `json:".width"`
+	ShowEmpty bool          `json:".showempty"`
+	Sort      concord.Order `json:".sort"`
 }
 
 var settings Settings
 
 type Context struct {
-	library string // library of current path, e.g. gr_gr_cog
-	topic   string // topic of current path, e.g. actors
-	key     string // key of current path, e.g. Priest
-	path    string // current path, e.g. gr_gr_cog/actors/Priest
-	tHeight int    // height of the user's terminal window
-	tWidth  int    // Width of the user's terminal window
+	Library string // library of current path, e.g. gr_gr_cog
+	Topic   string // topic of current path, e.g. actors
+	Key     string // key of current path, e.g. Priest
+	Path    string // current path, e.g. gr_gr_cog/actors/Priest
+	THeight int    // height of the user's terminal window
+	TWidth  int    // Width of the user's terminal window
 }
 
 var context Context
@@ -92,29 +103,29 @@ var previousContext Context
 
 func (c *Context) DBPath() string {
 	id := models.Id{}
-	id.Set(c.library, c.topic, c.key)
+	id.Set(c.Library, c.Topic, c.Key)
 	return id.ToNeoId()
 }
 func (c *Context) SetPath() {
 	sb := strings.Builder{}
-	if len(c.library) > 0 {
-		sb.WriteString(c.library)
-		if len(c.topic) > 0 {
+	if len(c.Library) > 0 {
+		sb.WriteString(c.Library)
+		if len(c.Topic) > 0 {
 			sb.WriteString(pathDelimiter)
-			sb.WriteString(c.topic)
-			if len(c.key) > 0 {
+			sb.WriteString(c.Topic)
+			if len(c.Key) > 0 {
 				sb.WriteString(pathDelimiter)
-				sb.WriteString(c.key)
+				sb.WriteString(c.Key)
 			}
 		}
-		context.path = sb.String()
+		context.Path = sb.String()
 	}
 }
 func (c *Context) Depth() int {
-	if context.path == "" {
+	if context.Path == "" {
 		return 0
 	} else {
-		return len(strings.Split(context.path, pathDelimiter))
+		return len(strings.Split(context.Path, pathDelimiter))
 	}
 }
 
@@ -123,40 +134,57 @@ func (c *Context) Like() string {
 	like := ""
 	switch c.Depth() {
 	case 1:
-		like = c.library + "~%"
+		like = c.Library + "~%"
 	case 2:
-		like = c.library + "~" + c.topic + "~%"
+		like = c.Library + "~" + c.Topic + "~%"
 	case 3:
-		like = c.library + "~" + c.topic + "~" + c.key
+		like = c.Library + "~" + c.Topic + "~" + c.Key
 	}
 	return like
 }
-func (c *Context) Path() string {
+func (c *Context) GetPath() string {
 	var b strings.Builder
-	if len(context.key) > 0 {
-		b.WriteString(context.library)
+	if len(context.Key) > 0 {
+		b.WriteString(context.Library)
 		b.WriteString(pathDelimiter)
-		b.WriteString(context.topic)
+		b.WriteString(context.Topic)
 		b.WriteString(pathDelimiter)
-		b.WriteString(context.key)
+		b.WriteString(context.Key)
 		return b.String()
 	}
-	if len(context.topic) > 0 {
-		b.WriteString(context.library)
+	if len(context.Topic) > 0 {
+		b.WriteString(context.Library)
 		b.WriteString(pathDelimiter)
-		b.WriteString(context.topic)
+		b.WriteString(context.Topic)
 		return b.String()
 	}
-	return context.library
+	return context.Library
 }
 
-var idMap map[int]models.Id // holds IDs of matching records resulting from ls or find
+// The map help by this type provides occurrence numbers
+// as aliases for IDs to make it easy for the user to cd to a path.
+type IDMap struct {
+	Map map[int]models.Id
+}
+
+func (im *IDMap) Reset() {
+	im.Map = make(map[int]models.Id)
+}
+func (im *IDMap) Add(index int, path string) {
+	var id models.Id
+	id.Parse(strings.TrimSpace(path))
+	im.Map[index] = id
+}
+
+// This map provides occurrence numbers as aliases for IDs
+// to make it easy for the user to cd to a path.
+var idMap IDMap
 
 func livePrefix() (string, bool) {
-	if context.path == "" {
+	if context.Path == "" {
 		return "", false
 	}
-	return context.path + "> ", true
+	return context.Path + "> ", true
 }
 
 // executes the commands issued by the user
@@ -168,27 +196,37 @@ func executor(in string) {
 	case "cd":
 		copyContext()
 		if len(blocks) < 2 {
-			context.path = ""
+			context.Path = ""
 		} else if blocks[1] == "~" {
-			context.path = resetPath()
+			context.Path = resetPath()
 		} else if len(blocks) > 1 && isNumber(blocks[1]) {
 			index, err := strconv.Atoi(blocks[1])
 			if err != nil {
 				fmt.Println(err)
 			} else {
-				if len(idMap[index].Domain.Country) > 0 {
-					setContextId(idMap[index])
+
+				if len(idMap.Map[index].Domain.Country) > 0 {
+					setContextId(idMap.Map[index])
 				} else {
 					fmt.Printf("%s not found\n", blocks[1])
 				}
 			}
 		} else {
-			up, dirs := cdParts(blocks[1])
+			// For user convenience, if the user pasted a DB ID with tildes
+			// convert to /.  Because an initial tilde is an alias for $HOME
+			// we skip the first char when doing the replacement.
+			var path string
+			if strings.HasPrefix(blocks[1], "~") {
+				path = "~" + strings.ReplaceAll(blocks[1][1:], "~", "/")
+			} else {
+				path = strings.ReplaceAll(blocks[1], "~", "/")
+			}
+			up, dirs := cdParts(path)
 			if len(up) > 0 {
 				if up == "~" {
-					context.path = resetPath()
+					context.Path = resetPath()
 				} else {
-					context.path = popPath(up)
+					context.Path = popPath(up)
 				}
 			}
 			if len(dirs) > 0 {
@@ -198,13 +236,13 @@ func executor(in string) {
 					fmt.Println("You can't go deeper than 3 levels (library/topic/key).")
 				} else {
 					for _, segment := range s {
-						context.path = pushPath(segment)
+						context.Path = pushPath(segment)
 					}
 				}
 			}
 			if context.Depth() == 3 {
-				if exists(context.library, context.topic, context.key) {
-					showValue(context.library, context.topic, context.key)
+				if exists(context.Library, context.Topic, context.Key) {
+					showValue(context.Library, context.Topic, context.Key)
 				} else {
 					revertContext()
 					fmt.Printf("%s not found\n", blocks[1])
@@ -218,16 +256,18 @@ func executor(in string) {
 	case "cmp":
 		{
 			method = "cmp"
+			idMap.Reset()
 			if context.Depth() == 3 {
-				recs,err := mapper.ReadByTK(context.topic, context.key,settings.ShowEmpty)
+				recs, err := mapper.ReadByTK(context.Topic, context.Key, settings.ShowEmpty)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
-				for _,rec := range recs {
-					fmt.Printf("%s\n",strings.Repeat("-",context.tWidth))
-					fmt.Println(rec.ID)
-					fmt.Printf("%s\n",strings.Repeat("-",context.tWidth))
+				for i, rec := range recs {
+					idMap.Add(i+1, rec.ID)
+					fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
+					fmt.Printf("%4d %s", i+1, rec.ID)
+					fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
 					fmt.Println(rec.Value)
 				}
 			} else {
@@ -238,13 +278,13 @@ func executor(in string) {
 		{
 			method = "find"
 			cMap = make(map[string]concord.ConcordanceLine)
-			idMap = make(map[int]models.Id)
+			idMap.Reset()
 			tWidth, tHeight, err := terminal.GetSize(0)
 			if err != nil {
 				fmt.Println(err)
 			} else {
-				context.tHeight = tHeight
-				context.tWidth = tWidth
+				context.THeight = tHeight
+				context.TWidth = tWidth
 			}
 
 			if len(blocks) == 1 {
@@ -265,19 +305,19 @@ func executor(in string) {
 					var sb strings.Builder
 					switch context.Depth() {
 					case 1:
-						sb.WriteString(context.library)
+						sb.WriteString(context.Library)
 						sb.WriteString("~%")
 					case 2:
-						sb.WriteString(context.library)
+						sb.WriteString(context.Library)
 						sb.WriteString("~")
-						sb.WriteString(context.topic)
+						sb.WriteString(context.Topic)
 						sb.WriteString("~%")
 					case 3:
-						sb.WriteString(context.library)
+						sb.WriteString(context.Library)
 						sb.WriteString("~")
-						sb.WriteString(context.topic)
+						sb.WriteString(context.Topic)
 						sb.WriteString("~")
-						sb.WriteString(context.key)
+						sb.WriteString(context.Key)
 					}
 					id = sb.String()
 				}
@@ -300,9 +340,7 @@ func executor(in string) {
 						cline(fmt.Sprintf("%*s", settings.Padding.P2, rec.ID), line, value, settings.Width)
 					}
 					for i, res := range concord.SortedKeys(cMap, settings.Sort) {
-						var id models.Id
-						id.Parse(strings.TrimSpace(cMap[res].ID))
-						idMap[i+1] = id
+						idMap.Add(i+1, cMap[res].ID)
 						if len(strings.TrimSpace(cMap[res].ID)) > 50 {
 							parts := strings.Split(cMap[res].ID, "~")
 							if len(parts) == 3 {
@@ -329,22 +367,66 @@ func executor(in string) {
 				}
 			}
 		}
+	case "lml":
+		if context.Depth() == 3 {
+			msg := fmt.Sprintf(`"%s~%s"`,context.Topic, context.Key)
+			fmt.Println(msg)
+		} else {
+			fmt.Println("You must be three levels deep to use this command")
+		}
+		return
 	case "ls":
-		method = strings.ToUpper(blocks[0])
-		if len(blocks) > 1 && isNumber(blocks[1]) {
+		method = "ls"
+		if len(blocks) > 1 && blocks[1] == "empty" {
+			idMap.Reset()
+			like := context.Like()
+			ids, err := mapper.Empty(like)
+			if err != nil {
+				Logger.Print(err)
+			}
+			for i, id := range ids {
+				idMap.Add(i+1, id)
+				fmt.Printf("%4d %s\n", i+1, id)
+			}
+			fmt.Printf("%d empty records found\n",len(ids))
+		} else if len(blocks) > 1 && blocks[1] == "redirects" {
+			idMap.Reset()
+			like := context.Like()
+			if context.Depth() < 3 {
+				redirects, err := mapper.Redirects(like)
+				if err != nil {
+					Logger.Print(err)
+				}
+				for i, redirect := range redirects {
+					idMap.Add(i+1, redirect.ID)
+					fmt.Printf("%4d %s ==> %s\n", i+1, redirect.ID, redirect.Redirect)
+				}
+			} else {
+				redirects, err := mapper.ReferredTo(like)
+				if err != nil {
+					Logger.Print(err)
+				}
+				for i, redirect := range redirects {
+					idMap.Add(i+1, redirect.Redirect)
+					fmt.Printf("%4d %s <== %s\n", i+1, redirect.Redirect, redirect.ID)
+				}
+			}
+		} else if len(blocks) > 1 && isNumber(blocks[1]) {
 			index, err := strconv.Atoi(blocks[1])
 			if err != nil {
 				fmt.Println(err)
 			} else {
-				if idMap[index].HasValues() {
-					id := idMap[index]
+				if idMap.Map[index].HasValues() {
+					id := idMap.Map[index]
 					showValue(id.Domain.ToNeo(), id.Topic, id.Key)
 				} else {
 					fmt.Printf("%s not found\n", blocks[1])
 				}
 			}
 		} else {
-			idMap = make(map[int]models.Id)
+			if context.Depth() < 3 {
+				idMap.Reset()
+			}
 			switch context.Depth() {
 			case 0:
 				{ // list all libraries in database
@@ -357,13 +439,13 @@ func executor(in string) {
 						var d models.Domain
 						d.Parse(library)
 						id.Domain = d
-						idMap[i+1] = id
+						idMap.Add(i+1, id.ToNeoId())
 						fmt.Printf("%4d %s\n", i+1, library)
 					}
 				}
 			case 1:
 				{ // list topics for current library
-					var like = context.library
+					var like = context.Library
 					if len(blocks) > 1 {
 						like = like + "~" + blocks[1]
 					}
@@ -374,16 +456,16 @@ func executor(in string) {
 					for i, topic := range topics {
 						var id models.Id
 						var d models.Domain
-						d.Parse(context.library)
+						d.Parse(context.Library)
 						id.Domain = d
 						id.Topic = topic
-						idMap[i+1] = id
+						idMap.Add(i+1, id.ToNeoId())
 						fmt.Printf("%4d %s\n", i+1, topic)
 					}
 				}
 			case 2:
 				{ // list keys for current library/topic
-					var like = context.library + "~" + context.topic
+					var like = context.Library + "~" + context.Topic
 					if len(blocks) > 1 {
 						like = like + "~" + blocks[1]
 					}
@@ -394,39 +476,85 @@ func executor(in string) {
 					for i, key := range keys {
 						var id models.Id
 						var d models.Domain
-						d.Parse(context.library)
+						d.Parse(context.Library)
 						id.Domain = d
-						id.Topic = context.topic
+						id.Topic = context.Topic
 						id.Key = key
-						idMap[i+1] = id
+						idMap.Add(i+1, id.ToNeoId())
 						fmt.Printf("%4d %s\n", i+1, key)
 					}
 				}
 			case 3:
 				{ // Display the value of the key
-					showValue(context.library, context.topic, context.key)
+					showValue(context.Library, context.Topic, context.Key)
 				}
 			}
 		}
 	case "set":
 		// TODO: when ltx struct is modified to have properties for create/modify date and by whom, need to set these here.
 		method = "set"
-		rec, err := mapper.ReadByLTK(context.library, context.topic, context.key)
+		if context.Depth() < 3 {
+			fmt.Println("You must be three levels deep to use the set command")
+			return
+		}
+		rec, err := mapper.ReadByLTK(context.Library, context.Topic, context.Key)
 		if err != nil {
 			fmt.Println(err)
 		} else {
+			var prompt = fmt.Sprintf("set what, to what?\nExample 1: set value PRIEST\nExample 2: set redirect gr_gr_cog/template.titles/d.onSaturdayEvening\nTo set blank: set value ''\nWhen setting to blank, use '' not \"\"")
 			value := ""
-			if len(blocks) > 1 { // if len == 0, user wants to set value to blank
-				value = escape(strings.Join(blocks[1:len(blocks)], " "))
+			if len(blocks) > 1 {
+				if len(blocks) > 2 {
+					value = escape(strings.Join(blocks[2:len(blocks)], " "))
+					switch blocks[1] {
+					case "redirect":
+						if value == "''" {
+							value = ""
+							rec.SetRedirect(value)
+						} else {
+							value = strings.ReplaceAll(value, "/", "~") // in case user used / instead of ~
+							var id models.Id
+							id.Parse(value)
+							if exists(id.Domain.ToNeo(), id.Topic, id.Key) {
+								rec.SetRedirect(value)
+							} else {
+								fmt.Printf("Does not exist in database: %s\n", value)
+							}
+						}
+					case "value":
+						if value == "''" {
+							value = ""
+						}
+						rec.SetValue(value)
+					default:
+						fmt.Println(prompt)
+					}
+					mapper.Merge(rec)
+					if len(rec.Value) > 0 {
+						fmt.Println(rec.Value)
+					} else {
+						if len(rec.Redirect) > 0 {
+							idMap.Reset()
+							idMap.Add(1, value)
+							fmt.Printf("Redirects to: 1 %s\n", rec.Redirect)
+						}
+					}
+				} else {
+					fmt.Println(prompt)
+				}
+			} else {
+				fmt.Println(prompt)
 			}
-			rec.SetValue(value)
-			mapper.Merge(rec)
-			fmt.Println(rec.Value)
 		}
 	case ".context":
 		{
 			method = ".context"
-			fmt.Printf("Library: %s, Topic: %s, Key: %s, Path: %s, Depth: %d\n", context.library, context.topic, context.key, context.path, context.Depth())
+			var jsonData []byte
+			jsonData, err := json.Marshal(context)
+			if err != nil {
+				log.Println(err)
+			}
+			fmt.Println(string(jsonData))
 		}
 	case ".exact":
 		{
@@ -623,31 +751,31 @@ func completer(in prompt.Document) []prompt.Suggest {
 }
 func popPath(levels string) string {
 	l := len(strings.Split(levels, pathDelimiter))
-	s := len(strings.Split(context.path, pathDelimiter))
+	s := len(strings.Split(context.Path, pathDelimiter))
 	r := s - l
 	if r < 1 {
-		context.library = ""
-		context.topic = ""
-		context.key = ""
+		context.Library = ""
+		context.Topic = ""
+		context.Key = ""
 	} else if r == 1 {
-		context.topic = ""
-		context.key = ""
+		context.Topic = ""
+		context.Key = ""
 	} else if r == 2 {
-		context.key = ""
+		context.Key = ""
 	} else {
 		fmt.Println("Oops!")
 	}
-	return context.Path()
+	return context.GetPath()
 }
 func pushPath(segment string) string {
-	if len(context.library) < 1 {
-		context.library = segment
-	} else if len(context.topic) < 1 {
-		context.topic = segment
+	if len(context.Library) < 1 {
+		context.Library = segment
+	} else if len(context.Topic) < 1 {
+		context.Topic = segment
 	} else {
-		context.key = segment
+		context.Key = segment
 	}
-	return context.Path()
+	return context.GetPath()
 }
 func setSuggestions() {
 	suggestions = []prompt.Suggest{
@@ -709,10 +837,10 @@ func appendKeys() {
 	}
 }
 func resetPath() string {
-	context.library = ""
-	context.topic = ""
-	context.key = ""
-	return context.Path()
+	context.Library = ""
+	context.Topic = ""
+	context.Key = ""
+	return context.GetPath()
 }
 func cdParts(p string) (string, string) {
 	var cdU = strings.Builder{}
@@ -741,19 +869,19 @@ func cdParts(p string) (string, string) {
 	return u, d
 }
 func exists(library, topic, key string) bool {
-	c, _ := mapper.CountKeys(context.library, context.topic, context.key)
+	c, _ := mapper.CountKeys(library, topic, key)
 	return c == 1
 }
 func reportCount() {
-	if len(context.path) > 0 {
+	if len(context.Path) > 0 {
 		p := message.NewPrinter(language.English)
-		c, _ := mapper.CountKeys(context.library, context.topic, context.key)
+		c, _ := mapper.CountKeys(context.Library, context.Topic, context.Key)
 		if c == 0 {
-			fmt.Printf("Path %s does not exist\n", context.path)
+			fmt.Printf("Path %s does not exist\n", context.Path)
 			revertContext()
 		} else {
 			if context.Depth() == 1 {
-				t, _ := mapper.CountTopics(context.library)
+				t, _ := mapper.CountTopics(context.Library)
 				p.Printf("%d topics %d keys\n", t, c)
 			} else {
 				p.Printf("%d keys\n", c)
@@ -762,16 +890,16 @@ func reportCount() {
 	}
 }
 func copyContext() {
-	previousContext.library = context.library
-	previousContext.topic = context.topic
-	previousContext.key = context.key
-	previousContext.path = context.path
+	previousContext.Library = context.Library
+	previousContext.Topic = context.Topic
+	previousContext.Key = context.Key
+	previousContext.Path = context.Path
 }
 func revertContext() {
-	context.library = previousContext.library
-	context.topic = previousContext.topic
-	context.key = previousContext.key
-	context.path = previousContext.path
+	context.Library = previousContext.Library
+	context.Topic = previousContext.Topic
+	context.Key = previousContext.Key
+	context.Path = previousContext.Path
 }
 func showValue(library, topic, key string) {
 	rec, err := mapper.ReadByLTK(library, topic, key)
@@ -779,7 +907,20 @@ func showValue(library, topic, key string) {
 		fmt.Println(err)
 	} else {
 		if rec != nil {
-			fmt.Println(rec.Value)
+			if len(rec.Redirect) > 0 {
+				fmt.Printf("Redirects to: 1 %s\n", rec.Redirect)
+				var id models.Id
+				err = id.Parse(rec.Redirect)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				idMap.Reset()
+				idMap.Add(1, rec.Redirect)
+				showValue(id.Domain.ToNeo(), id.Topic, id.Key)
+			} else {
+				fmt.Println(rec.Value)
+			}
 		}
 	}
 }
@@ -894,9 +1035,9 @@ func isNumber(s string) bool {
 }
 func setContextId(id models.Id) {
 	if id.HasValues() {
-		context.library = id.Domain.ToNeo()
-		context.topic = id.Topic
-		context.key = id.Key
+		context.Library = id.Domain.ToNeo()
+		context.Topic = id.Topic
+		context.Key = id.Key
 		context.SetPath()
 	} else {
 		fmt.Printf("setContextId parse error. Expected library, topic, key\n")

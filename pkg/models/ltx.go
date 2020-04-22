@@ -195,6 +195,17 @@ func (l *Ltx) SetValue(value string) {
 	l.Value = value
 	l.NWP = ltstring.ToNwp(value)
 	l.NNP = ltstring.ToNnp(value)
+	if len(value) > 0 { // value and redirect are mutually exclusive.
+		l.Redirect = ""
+	}
+}
+// SetRedirect sets the redirect.  If length > 0, calls SetValue, setting it to ""
+// because value and redirect are mutually exclusive.
+func (l *Ltx) SetRedirect(to string) {
+	l.Redirect = to
+	if len(to) > 0 { // value and redirect are mutually exclusive.
+		l.SetValue("")
+	}
 }
 // NewLtx returns a new Ltx instance.  It normalizes the value so the
 // nnp and nwp properties are set correctly.
