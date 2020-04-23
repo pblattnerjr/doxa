@@ -1,0 +1,26 @@
+TheotokeSyEi.text1 = "Theotokos, you are the true vine that produced the fruit of life. Lady, we fervently entreat you to intercede along with " // insert "" and specific kind of saint, from ares file.
+// Test Case 1: a key with an empty value that does not get defined later
+testcase1 = ""
+// Test Case 2: a key with a non-empty value that does not get re-defined later
+testcase2 = "a definition with no later override"
+// Test Case 3: a key with an empty value that is repeated later (subsequent ignored)
+testcase3 = ""
+// Test Case 4: a key with an empty value that is defined later (use the non-empty value)
+testcase4 = ""
+// Test Case 5: a key with a value with an embedded newline
+testcase5 = "A key with an 
+embedded newline"
+// Test Case 6: a key with duplicate non-empty values
+testcase6 = "A non-empty value that gets duplicated"
+// Test Case 7: a key with subsequent but different values (use the last)
+testcase7 = "A value to redefine later"
+// Test Case 8: a key with a value followed by the same key with an empty value (use the noon-empty value)
+testcase8 = "A non-empty value which should not be overridden"
+// Test Case 9: A key with a redirect to another key
+testcase9 = testcase2
+testcase3 = ""
+testcase4 = "This is a subsequent definition"
+testcase6 = "A non-empty value that gets duplicated"
+testcase7 = "A second value for testcase7"
+testcase7 = "A third value for testcase7"
+testcase8 = ""

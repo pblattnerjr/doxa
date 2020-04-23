@@ -74,7 +74,9 @@ func ParseLine(filenameParts FilenameParts, line string) (LineParts, error) {
 		if len(parts) > 1 {
 			result.Key = strings.TrimSpace(parts[0])
 			result.Value = strings.TrimSpace(parts[1])
-			if strings.Index(result.Value, "//") > -1 {
+			startComment := strings.Index(result.Value, "//")
+			lastQuote := strings.LastIndex(result.Value, "\"")
+			if startComment > -1 && lastQuote < startComment { // The string "//" is valid inside a definition
 				result.HasComment = true
 				valueParts := strings.Split(result.Value, "//")
 				result.Value = strings.TrimSpace(valueParts[0])
@@ -155,39 +157,53 @@ var lineCnt int
 var fileIn *os.File
 var fileOut *os.File
 
-func saveDefinition(k string, v string, c string,
-	definitions map[string]string, commentsForKey map[string]string, keys *[]string, fname string) bool {
+func saveDefinition(k string, v string, c string, noComment bool,
+	definitions map[string]string, commentsForKey map[string]string) bool {
 
 	var found bool
-	var err error
 	var msg string
-	var oldV string
+	var oldValue string
 
-	oldV, found = definitions[k]
+	oldValue, found = definitions[k]
 
 	if found == false {
+		// Case 1: no previous definition, value is "" - save value
+		// Case 2: no previous definition, value is NOT "" - save value
 		definitions[k] = v // new value
-		commentsForKey[k] = c
-	} else if definitions[k] == emptyString {
-		definitions[k] = v // substitute real value for placeholder
-		commentsForKey[k] = c
-	} else if v == emptyString {
-		err = errors.New(fmt.Sprintf("%s %d Invalid replacement of value %s for key %s with empty string",
-			fname, lineCnt, oldV, k))
-		log.Println(err)
-
-		if !alreadyDefined("//"+k, definitions) { // we need to create a place for the commented out key, too
-			*keys = append(*keys, "//"+k)
-
-			definitions["//"+k] = v    // save definition using commented out key
-			commentsForKey["//"+k] = c // save comments using commented out key
+		if !noComment {
+			commentsForKey[k] += c
 		}
-	} else {
-		msg = fmt.Sprintf("%s %d Substituting value %s for key %s with old value %s",
-			fname, lineCnt, v, k, oldV)
-		log.Println(msg)
-		definitions[k] = v // updating value for key
-		commentsForKey[k] = c
+	} else if oldValue == emptyString && v == emptyString {
+		// Case 3: saved definition and current definition are both "" - discard this definition
+		msg = fmt.Sprintf("// line %d duplicate empty definition for key %s - discarded\n", lineCnt, k)
+		if !noComment {
+			commentsForKey[k] += c + msg
+		}
+	} else if oldValue == emptyString && v != emptyString {
+		// Case 4: replacing empty definition with real definition
+		definitions[k] = v // substitute real value for placeholder
+		msg = fmt.Sprintf("// line %d empty definition for key %s replaced with %s\n", lineCnt, k, v)
+		if !noComment {
+			commentsForKey[k] += c + msg
+		}
+	} else if oldValue != emptyString && v == emptyString {
+		// Case 5: old definitions is non-empty but new definition is "" - discard new definition
+		msg = fmt.Sprintf("// line %d Invalid replacement of value %s for key %s with empty string\n", lineCnt, oldValue, k)
+		if !noComment {
+			commentsForKey[k] += c + msg
+		}
+	} else if oldValue != emptyString && v != emptyString {
+		if v == oldValue {
+			// Case 6: both old definitions and new definition are non-empty and the same - discard new definition
+			msg = fmt.Sprintf("// line %d duplicate value %s for key %s - discarded\n", lineCnt, v, k)
+		} else {
+			// Case 7: both old definitions and new definition are non-empty - use new definition
+			msg = fmt.Sprintf("// line %d Substituting value %s for key %s old value was %s\n", lineCnt, v, k, oldValue)
+			definitions[k] = v // updating value for key
+		}
+		if !noComment {
+			commentsForKey[k] += c + msg
+		}
 	}
 	return found
 }
@@ -204,12 +220,12 @@ func hasComments(k string, commentsForKey map[string]string) bool {
 	return found
 }
 
-func CleanAres(in, out string) error {
+func CleanAres(in, out string, noComment bool) error {
 	var (
 		err            error
 		parts          []string
 		line           string
-		line2          string
+		nextLine       string
 		aresKey        string
 		aresDef        string
 		keys           []string
@@ -229,6 +245,11 @@ func CleanAres(in, out string) error {
 	defer fileIn.Close()
 	scanner := bufio.NewScanner(fileIn)
 
+	theDir := filepath.Dir(out)
+	err = os.MkdirAll(theDir,os.ModeDir)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fileOut, err := os.Create(out)
 	if err != nil {
 		log.Fatal(err)
@@ -236,52 +257,65 @@ func CleanAres(in, out string) error {
 	defer fileOut.Close()
 	w := bufio.NewWriter(fileOut)
 
+	var blockComment bool
+
 	//
 	// Phase 1 - scan the file creating a slice of keys to be written and
 	// a map of definitions index by the keys
 	//
 	for scanner.Scan() {
 		line = strings.TrimSpace(scanner.Text())
-		line = strings.TrimSpace(line) // ??? why
+		line = strings.TrimSpace(line)
 		lineCnt++
 
-		//
+
 		// Append all blank or comment lines to the 'comments' variable
 		// to be associated with the next key
 		if len(line) == 0 || strings.HasPrefix(line, "//") {
 			comments = comments + line + "\n"
 			continue
 		}
-		if strings.HasPrefix(line, "/*") {
+		if strings.HasPrefix(line, "/*") || blockComment {
 			comments = comments + line + "\n"
+			blockComment = true
 			continue
 		}
 		if strings.HasPrefix(line, "*/") || strings.HasSuffix(line, "*/") {
 			comments = comments + line + "\n"
+			blockComment = false
 			continue
 		}
 
-		parts = strings.Split(line, "=")
-		if len(parts) == 1 && parts[0] == "=" { // no "=" in the line, just treat it like a comment
+		if !strings.Contains(line,"=") { // no "=" in the line, just treat it like a comment
 			comments = comments + line + "\n"
 			continue
 		} else { // this is an assignment of some sort
+			parts = strings.Split(line, "=")
 			aresKey = strings.TrimSpace(parts[0])
 			aresDef = strings.TrimSpace(parts[1])
+			aresDef = strings.ReplaceAll(aresDef,"\\\"","%%")  // guard escaped quotes
+			if len(parts) > 2 { // a few lines have an '=' in a trailing comment
+				aresDef = aresDef + " = " + strings.TrimSpace(parts[2])
+			}
 
 			if strings.HasPrefix(aresDef, "\"") { // right side starts with quote
-				// Special 2-line case with embedded newline
-				if !strings.HasSuffix(aresDef, "\"") { // right side has no close quote
-					scanner.Scan()
-					line2 = strings.TrimSpace(scanner.Text())
-					lineCnt++
-					if strings.Contains(line2, "\"") { // This is the second part of the definition.
-						aresDef = aresDef + " " + line2
-					} else {
-						err = errors.New(fmt.Sprintf("%s %d %s: invalid def continuation %s",
-							fileIn.Name(), lineCnt, line, line2)) //log error.
-						log.Println(err)
-						break
+				// Special multi-line case with embedded newline
+				// if aresDef has no close quote
+				if aresDef == "\"" ||  !strings.HasSuffix(aresDef, "\"") && strings.Count(aresDef,"\"") == 1 {
+					for {
+						scanner.Scan()
+						nextLine = strings.TrimSpace(scanner.Text())
+						nextLine = strings.ReplaceAll(nextLine,"\\\"","%%") // guard escaped quotes
+						lineCnt++
+						if aresDef != "\"" && nextLine != "\"" {
+							aresDef = aresDef + " " + nextLine
+						} else {
+							aresDef = aresDef + nextLine // no need for extra space at start or end
+						}
+
+						if strings.HasSuffix(nextLine, "\"") { // This is the last line of the definition.
+							break
+						}
 					}
 				}
 			}
@@ -290,7 +324,9 @@ func CleanAres(in, out string) error {
 				keys = append(keys, aresKey)
 			}
 
-			saveDefinition(aresKey, aresDef, comments, definitions, commentsForKey, &keys, fileIn.Name())
+			aresDef = strings.ReplaceAll(aresDef,"%%","\\\"") // restore escaped quotes
+
+			saveDefinition(aresKey, aresDef, comments, noComment, definitions, commentsForKey)
 			comments = ""
 		}
 	}
@@ -312,6 +348,8 @@ func CleanAres(in, out string) error {
 	w.Flush()
 	return err
 }
+
+
 // GetAresErrors returns an array of errors found
 // in the specified ares file.  The errors will
 // be one of the error types defined in this package.
@@ -326,7 +364,7 @@ func GetAresErrors(in string) *[]error {
 	var fileNameParts FilenameParts
 	fileNameParts, err = ParseAresFileName(file.Name())
 	if err != nil {
-		result = append(result, err)
+		result = append(result, errors.New(fmt.Sprintf("%s: %v", file.Name(), err)))
 	}
 	var lineCnt int
 	inCommentBlock := false
