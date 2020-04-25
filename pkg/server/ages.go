@@ -2,6 +2,7 @@
 // TODO: api versioning based on https://dev.to/geosoft1/versioning-your-api-in-go-1g4h
 // 23-11-2019 BigMac: I stubbed out an example of versioning.  It works fine, but I
 // am not happy with the current approach of naming handlexV1 vs handlexV2 as handler names.
+// TODO: look into gofiber and see if is a better solution than current: https://github.com/gofiber
 package server
 
 import (

@@ -31,14 +31,14 @@ var cloneCmd = &cobra.Command{
 	Short: "clones the github repos listed in the config file",
 	Long: `clones the github repositories listed in the config file
 that are identified by the key github.repos, to the ares.dir (directory)
-value set in the config file. Be aware that if the directory exists,
+value setRecord in the config file. Be aware that if the directory exists,
 it will first be deleted.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		start := time.Now()
 
-		// set popPath the logger, which will be passed to the functions that do the processing
+		// setRecord popPath the logger, which will be passed to the functions that do the processing
 		LogFile, err := os.OpenFile(LogFilename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 		if err != nil {
 			panic(err)

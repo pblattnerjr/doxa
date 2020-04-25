@@ -512,3 +512,8 @@ func (m *LtxMapper) CaseSensitiveLike(on bool) error {
 	_,err := m.DB.Exec("PRAGMA case_sensitive_like = true;")
 	return err
 }
+// Verifies a record exists in the database for the specified library, topic, and key
+func (m *LtxMapper) Exists(library, topic, key string) bool {
+	c, _ := m.CountKeys(library, topic, key)
+	return c == 1
+}

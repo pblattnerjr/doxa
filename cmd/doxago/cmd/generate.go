@@ -33,7 +33,7 @@ var generateCmd = &cobra.Command{
 
 		start := time.Now()
 
-		// set popPath the logger, which will be passed to the functions that do the processing
+		// setRecord popPath the logger, which will be passed to the functions that do the processing
 		LogFile, err := os.OpenFile(LogFilename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 		if err != nil {
 			panic(err)

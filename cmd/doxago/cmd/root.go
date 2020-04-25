@@ -78,10 +78,10 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.doxago.yaml)")
 	rootCmd.PersistentFlags().StringVar(&LogFilename, "logfile", "doxago.log", "name of log file")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "display information while the command is running")
-	rootCmd.PersistentFlags().BoolP("test", "t", false, "when set will use test data identified in the config file")
+	rootCmd.PersistentFlags().BoolP("test", "t", false, "when setRecord will use test data identified in the config file")
 }
 
-// initConfig reads in config file and ENV variables if set.
+// initConfig reads in config file and ENV variables if setRecord.
 func initConfig() {
 	homeDir := homeDir()
 	DOXAHOME = path.Join(homeDir,"doxa")
@@ -164,7 +164,7 @@ func initializeDb(db string) {
 	// load the database
 	start := time.Now()
 
-	// set popPath the logger, which will be passed to the functions that do the processing
+	// setRecord popPath the logger, which will be passed to the functions that do the processing
 	LogFile, err := os.OpenFile(LogFilename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		panic(err)

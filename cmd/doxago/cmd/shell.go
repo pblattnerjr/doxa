@@ -69,10 +69,11 @@ func init() {
 }
 
 var mapper = ltx2sql.LtxMapper{}
-var cMap map[string]concord.ConcordanceLine
+var conc concord.Concordance
 var commands []prompt.Suggest
 var suggestions []prompt.Suggest
 var pathDelimiter = mapper.IDDelimiter()
+
 type Padding struct {
 	P1 int `json:"number"`
 	P2 int `json:"id"`
@@ -168,10 +169,12 @@ func (c *Context) GetPath() string {
 type IDMap struct {
 	Map map[int]models.Id
 }
+
 // Resets the map so it is empty
 func (im *IDMap) Reset() {
 	im.Map = make(map[int]models.Id)
 }
+
 // Adds a path to the map
 func (im *IDMap) Add(index int, path string) {
 	var id models.Id
@@ -197,386 +200,30 @@ func executor(in string) {
 	blocks := strings.Split(in, " ")
 	switch blocks[0] {
 	case "cd":
-		copyContext()
-		if len(blocks) < 2 {
-			context.Path = ""
-		} else if blocks[1] == "~" {
-			context.Path = resetPath()
-		} else if len(blocks) > 1 && isNumber(blocks[1]) {
-			index, err := strconv.Atoi(blocks[1])
-			if err != nil {
-				fmt.Println(err)
-			} else {
-
-				if len(idMap.Map[index].Domain.Country) > 0 {
-					setContextId(idMap.Map[index])
-				} else {
-					fmt.Printf("%s not found\n", blocks[1])
-				}
-			}
-		} else {
-			up, dirs := cdParts(blocks[1])
-			if len(up) > 0 {
-				if up == "~" {
-					context.Path = resetPath()
-				} else {
-					context.Path = popPath(up)
-				}
-			}
-			if len(dirs) > 0 {
-				s := strings.Split(dirs, pathDelimiter)
-				depth := context.Depth()
-				if depth+len(s) > 3 {
-					fmt.Println("You can't go deeper than 3 levels (library/topic/key).")
-				} else {
-					for _, segment := range s {
-						context.Path = pushPath(segment)
-					}
-				}
-			}
-			if context.Depth() == 3 {
-				if exists(context.Library, context.Topic, context.Key) {
-					showValue(context.Library, context.Topic, context.Key)
-					if settings.Hints {
-						fmt.Printf("Hint: cmp to compare values for records with topic/key = %s/%s\n",context.Topic, context.Library)
-					}
-				} else {
-					revertContext()
-					fmt.Printf("%s not found\n", blocks[1])
-				}
-			} else {
-				reportCount()
-			}
-		}
-		setSuggestions()
-		return
+		method = blocks[0]
+		changeDirectory(blocks)
 	case "cmp":
-		{
-			method = "cmp"
-			idMap.Reset()
-			if context.Depth() == 3 {
-				recs, err := mapper.ReadByTK(context.Topic, context.Key, settings.ShowEmpty)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-				for i, rec := range recs {
-					idMap.Add(i+1, rec.ID)
-					fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
-					fmt.Printf("%4d %s\n", i+1, rec.ID)
-					fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
-					fmt.Println(rec.Value)
-				}
-				if settings.Hints {
-					l := len(idMap.Map)
-					fmt.Printf("\nHint: cd {number} to change directory, e.g. cd %d to change to %s\n", l, idMap.Map[l-1].ToPath())
-				}
-			} else {
-				fmt.Println("You must be three levels deep to use this command.")
-			}
-		}
+		method = blocks[0]
+		compareValues()
 	case "exit":
 		fmt.Println("Bye!")
 		os.Exit(0)
 	case "find":
-		{
-			method = "find"
-			cMap = make(map[string]concord.ConcordanceLine)
-			idMap.Reset()
-			tWidth, tHeight, err := terminal.GetSize(0)
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				context.THeight = tHeight
-				context.TWidth = tWidth
-			}
-
-			if len(blocks) == 1 {
-				fmt.Println("You must tell me what value to find")
-			} else {
-				value := escape(strings.Join(blocks[1:len(blocks)], " "))
-				if strings.Contains(value, "%") {
-					// at this time, it is unlikely that there is a % in liturgical text.
-					// But, just in case, we will escape the percent
-					value = strings.ReplaceAll(value, "%", "\\%")
-				}
-				var recs []*models.Ltx
-				var err error
-				var id string
-				if len(settings.IDlike) > 0 {
-					id = settings.IDlike
-				} else {
-					var sb strings.Builder
-					switch context.Depth() {
-					case 1:
-						sb.WriteString(context.Library)
-						sb.WriteString(pathDelimiter)
-						sb.WriteString("%")
-					case 2:
-						sb.WriteString(context.Library)
-						sb.WriteString(pathDelimiter)
-						sb.WriteString(context.Topic)
-						sb.WriteString(pathDelimiter)
-						sb.WriteString("%")
-					case 3:
-						sb.WriteString(context.Library)
-						sb.WriteString(pathDelimiter)
-						sb.WriteString(context.Topic)
-						sb.WriteString(pathDelimiter)
-						sb.WriteString(context.Key)
-					}
-					id = sb.String()
-				}
-				if settings.Exact {
-					recs, err = mapper.ReadByValue(id, value)
-				} else {
-					recs, err = mapper.ReadByNNP(id, value)
-				}
-				if err != nil {
-					fmt.Println(err)
-				} else {
-					for _, rec := range recs {
-						var line = ""
-						if settings.Exact {
-							line = rec.Value
-						} else {
-							line = rec.NNP
-						}
-
-						cline(fmt.Sprintf("%*s", settings.Padding.P2, rec.ID), line, value, settings.Width)
-					}
-					for i, res := range concord.SortedKeys(cMap, settings.Sort) {
-						idMap.Add(i+1, cMap[res].ID)
-						if len(strings.TrimSpace(cMap[res].ID)) > 50 {
-							parts := strings.Split(cMap[res].ID, pathDelimiter)
-							if len(parts) == 3 {
-								fmt.Printf("%*d |%s%s%s%s\n", settings.Padding.P1, i+1, parts[0], pathDelimiter, parts[1], pathDelimiter)
-								fmt.Printf("     | %*s | %-s%s%s\n", settings.Padding.P2, parts[2], cMap[res].Left, cMap[res].Key, cMap[res].Right)
-							} else {
-								// bad
-								fmt.Printf("%*d | %*s | %-s%s%s\n", settings.Padding.P1, i+1, settings.Padding.P2, cMap[res].ID, cMap[res].Left, cMap[res].Key, cMap[res].Right)
-							}
-						} else {
-							fmt.Printf("%*d | %*s | %-s%s%s\n", settings.Padding.P1, i+1, settings.Padding.P2, cMap[res].ID, cMap[res].Left, cMap[res].Key, cMap[res].Right)
-						}
-					}
-					var exact = "off"
-					if settings.Exact {
-						exact = "off"
-					}
-					fmt.Printf("%d records found. Find .exact %s. To change: .exact on or .exact off", len(recs), exact)
-					if len(settings.IDlike) > 0 {
-						fmt.Printf(".idlike = %s, so current path was not used. To turn off: idlike %%", settings.IDlike)
-					}
-					fmt.Println("")
-					if settings.Hints {
-						fmt.Printf("Hint: use cd {number} to change directory to a library/topic/key, e.g. cd %d\n",2322)
-					}
-				}
-			}
-		}
+		method = blocks[0]
+		find(blocks)
 	case "help":
-		for _, command := range commands {
-			fmt.Printf("%s:\t%s\n",command.Text, command.Description)
-		}
-		fmt.Println("")
-		fmt.Println("Commands that start with a dot are for the settings.")
-		fmt.Println("The settings affect the way the other commands behave.")
-		fmt.Printf("As you type, suggestions will appear as a pop up.\nTab to set focus on the pop up.\nYou can scroll up or down using the arrow keys.\nUse the <Enter> key to select an item in the pop up.\n")
-		fmt.Println("You can also use the up and down keys to scroll through previously issued commands.")
-		return
+		method = blocks[0]
+		showHelp()
 	case "lml":
-		if context.Depth() == 3 {
-			msg := fmt.Sprintf(`"%s%s%s"`,context.Topic, pathDelimiter, context.Key)
-			fmt.Println(msg)
-		} else {
-			fmt.Println("You must be three levels deep to use this command")
-		}
-		return
+		method = blocks[0]
+		showTKAsLML()
 	case "ls":
-		method = "ls"
-		if len(blocks) > 1 && blocks[1] == "empty" {
-			idMap.Reset()
-			like := context.Like()
-			ids, err := mapper.Empty(like)
-			if err != nil {
-				Logger.Print(err)
-			}
-			for i, id := range ids {
-				idMap.Add(i+1, id)
-				fmt.Printf("%4d %s\n", i+1, id)
-			}
-			fmt.Printf("%d empty records found\n",len(ids))
-		} else if len(blocks) > 1 && blocks[1] == "redirects" {
-			idMap.Reset()
-			like := context.Like()
-			if context.Depth() < 3 {
-				redirects, err := mapper.Redirects(like)
-				if err != nil {
-					Logger.Print(err)
-				}
-				for i, redirect := range redirects {
-					idMap.Add(i+1, redirect.ID)
-					fmt.Printf("%4d %s ==> %s\n", i+1, redirect.ID, redirect.Redirect)
-				}
-			} else {
-				redirects, err := mapper.ReferredTo(like)
-				if err != nil {
-					Logger.Print(err)
-				}
-				for i, redirect := range redirects {
-					idMap.Add(i+1, redirect.Redirect)
-					fmt.Printf("%4d %s <== %s\n", i+1, redirect.Redirect, redirect.ID)
-				}
-			}
-		} else if len(blocks) > 1 && isNumber(blocks[1]) {
-			index, err := strconv.Atoi(blocks[1])
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				if idMap.Map[index].HasValues() {
-					id := idMap.Map[index]
-					showValue(id.Domain.ToNeo(), id.Topic, id.Key)
-				} else {
-					fmt.Printf("%s not found\n", blocks[1])
-				}
-			}
-		} else {
-			if context.Depth() < 3 {
-				idMap.Reset()
-			}
-			switch context.Depth() {
-			case 0:
-				{ // list all libraries in database
-					libraries, err := mapper.Libraries()
-					if err != nil {
-						Logger.Print(err)
-					}
-					for i, library := range libraries {
-						var id models.Id
-						var d models.Domain
-						d.Parse(library)
-						id.Domain = d
-						idMap.Add(i+1, id.ToSQLId())
-						fmt.Printf("%4d %s\n", i+1, library)
-					}
-					if settings.Hints {
-						fmt.Printf("Hint: use cd {number} to change directory to that library, e.g. cd %d\n",len(libraries))
-					}
-				}
-			case 1:
-				{ // list topics for current library
-					var like = context.Library
-					if len(blocks) > 1 {
-						like = like + pathDelimiter + blocks[1]
-					}
-					topics, err := mapper.Topics(like)
-					if err != nil {
-						Logger.Print(err)
-					}
-					for i, topic := range topics {
-						var id models.Id
-						var d models.Domain
-						d.Parse(context.Library)
-						id.Domain = d
-						id.Topic = topic
-						idMap.Add(i+1, id.ToSQLId())
-						fmt.Printf("%4d %s\n", i+1, topic)
-					}
-					if settings.Hints {
-						fmt.Printf("Hint: use cd {number} to change directory to a library/topic, e.g. cd %d\n",len(topics))
-					}
-				}
-			case 2:
-				{ // list keys for current library/topic
-					var like = context.Library + pathDelimiter + context.Topic
-					if len(blocks) > 1 {
-						like = like + pathDelimiter + blocks[1]
-					}
-					keys, err := mapper.Keys(like)
-					if err != nil {
-						Logger.Print(err)
-					}
-					for i, key := range keys {
-						var id models.Id
-						var d models.Domain
-						d.Parse(context.Library)
-						id.Domain = d
-						id.Topic = context.Topic
-						id.Key = key
-						idMap.Add(i+1, id.ToSQLId())
-						fmt.Printf("%4d %s\n", i+1, key)
-					}
-					if settings.Hints {
-						fmt.Printf("Hint: use cd {number} to change directory to a library/topic/key, e.g. cd %d\n",len(keys))
-					}
-				}
-			case 3:
-				{ // Display the value of the key
-					showValue(context.Library, context.Topic, context.Key)
-				}
-			}
-		}
+		method = blocks[0]
+		list(blocks)
 	case "set":
-		// TODO: when ltx struct is modified to have properties for create/modify date and by whom, need to set these here.
-		method = "set"
-		if context.Depth() < 3 {
-			fmt.Println("You must be three levels deep to use the set command")
-			return
-		}
-		rec, err := mapper.ReadByLTK(context.Library, context.Topic, context.Key)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			var prompt = fmt.Sprintf("set what, to what?\nExample 1: set value PRIEST\nExample 2: set redirect gr_gr_cog/template.titles/d.onSaturdayEvening\nExample 3: set comment kairos prayer\nTo set blank: set value ''\nWhen setting to blank, use '' not \"\"")
-			value := ""
-			if len(blocks) > 1 {
-				if len(blocks) > 2 {
-					value = escape(strings.Join(blocks[2:len(blocks)], " "))
-					switch blocks[1] {
-					case "comment":
-						if value == "''" {
-							value = ""
-						}
-						rec.Comment = value
-					case "redirect":
-						if value == "''" {
-							value = ""
-							rec.SetRedirect(value)
-						} else {
-							var id models.Id
-							id.Parse(value)
-							if exists(id.Domain.ToNeo(), id.Topic, id.Key) {
-								rec.SetRedirect(value)
-							} else {
-								fmt.Printf("Does not exist in database: %s\n", value)
-							}
-						}
-					case "value":
-						if value == "''" {
-							value = ""
-						}
-						rec.SetValue(value)
-					default:
-						fmt.Println(prompt)
-					}
-					mapper.Merge(rec)
-					if len(rec.Value) > 0 {
-						fmt.Println(rec.Value)
-					} else {
-						if len(rec.Redirect) > 0 {
-							idMap.Reset()
-							idMap.Add(1, value)
-							fmt.Printf("Redirects to: 1 %s\n", rec.Redirect)
-						}
-					}
-				} else {
-					fmt.Println(prompt)
-				}
-			} else {
-				fmt.Println(prompt)
-			}
-		}
+		// TODO: when ltx struct is modified to have properties for create/modify by whom, need to set these here.
+		method = blocks[0]
+		setRecord(blocks)
 	case ".context":
 		{
 			method = ".context"
@@ -790,10 +437,7 @@ func executor(in string) {
 		return
 	}
 
-	if h := strings.Split(in, ":"); len(h) == 2 {
-	} else {
-		fmt.Println("Sorry, I don't understand.")
-	}
+	fmt.Println("Sorry, I don't understand.")
 }
 
 func completer(in prompt.Document) []prompt.Suggest {
@@ -803,6 +447,7 @@ func completer(in prompt.Document) []prompt.Suggest {
 	}
 	return prompt.FilterHasPrefix(suggestions, w, true)
 }
+
 // moves up the path hierarchy
 func popPath(levels string) string {
 	l := len(strings.Split(levels, pathDelimiter))
@@ -822,6 +467,7 @@ func popPath(levels string) string {
 	}
 	return context.GetPath()
 }
+
 // Moves deeper down the path hierarchy
 func pushPath(segment string) string {
 	if len(context.Library) < 1 {
@@ -833,6 +479,7 @@ func pushPath(segment string) string {
 	}
 	return context.GetPath()
 }
+
 // Sets the values for the popup window that shows the users matching strings
 func setSuggestions() {
 	suggestions = []prompt.Suggest{}
@@ -888,6 +535,7 @@ func appendCommands() {
 		suggestions = append(suggestions, command)
 	}
 }
+
 // get list of libraries from the database and append to suggestions
 func appendLibraries() {
 	libraries, err := mapper.Libraries()
@@ -923,6 +571,7 @@ func appendKeys() {
 		suggestions = append(suggestions, prompt)
 	}
 }
+
 // Sets the path to be empty
 func resetPath() string {
 	context.Library = ""
@@ -930,6 +579,7 @@ func resetPath() string {
 	context.Key = ""
 	return context.GetPath()
 }
+
 // Converts a path into the pop and push parts
 // e.g. ../../actors/Priest has ../../ as the pop parts and actors/Priest as the push parts
 func cdParts(p string) (string, string) {
@@ -958,11 +608,7 @@ func cdParts(p string) (string, string) {
 	}
 	return u, d
 }
-// Verifies a record exists in the database for the specified library, topic, and key
-func exists(library, topic, key string) bool {
-	c, _ := mapper.CountKeys(library, topic, key)
-	return c == 1
-}
+
 // Gets the number of records that exist.  It is based on the depth of the path.
 func reportCount() {
 	if len(context.Path) > 0 {
@@ -981,6 +627,7 @@ func reportCount() {
 		}
 	}
 }
+
 // Copies the current context so it can be reverted if an error occurs
 func copyContext() {
 	previousContext.Library = context.Library
@@ -988,6 +635,7 @@ func copyContext() {
 	previousContext.Key = context.Key
 	previousContext.Path = context.Path
 }
+
 // Revert the context to the values in previousContext
 func revertContext() {
 	context.Library = previousContext.Library
@@ -995,6 +643,7 @@ func revertContext() {
 	context.Key = previousContext.Key
 	context.Path = previousContext.Path
 }
+
 // Show the value for the record with the matcing library, topic, and key.
 // If .showall is true, the json of the entire record will be shown.
 func showValue(library, topic, key string) {
@@ -1029,6 +678,7 @@ func showValue(library, topic, key string) {
 		}
 	}
 }
+
 // escape quotes
 func escape(value string) string {
 	value = strconv.Quote(value)
@@ -1038,83 +688,7 @@ func escape(value string) string {
 	return value
 }
 
-// Centers keyword in middle, with window size = Width for left and right
-// And, add id, left, key, right to concordance map named cMap so we can Sort the lines
-// by parts.
-func cline(id, line, key string, width int) string {
-	r := []rune(line)
-	rKey := []rune(key)
-	keyIndex := indexInRune(r, key)
-	lineLen := len(r)
-	// get left context
-	leftIndex := 0
-	if keyIndex-width > 0 {
-		leftIndex = keyIndex
-		for i := keyIndex - 1; i > 0; i-- {
-			if leftIndex <= (keyIndex - width) {
-				break
-			} else {
-				leftIndex--
-			}
-		}
-	}
-	// get right context
-	rightStart := keyIndex + len(rKey) + 1
-	rightIndex := rightStart
-	for i := rightStart; i < lineLen; i++ {
-		if rightIndex > keyIndex+width {
-			break
-		} else {
-			rightIndex++
-		}
-	}
-	var left, right string
-	if 0 <= leftIndex && leftIndex <= keyIndex && keyIndex <= len(r) {
-		left = string(r[leftIndex:keyIndex])
-	}
-	left = fmt.Sprintf("%*s", width-len(left), left)
-	keyRight := keyIndex + len(rKey)
-	if keyRight < rightIndex && rightIndex <= len(r) {
-		right = string(r[keyRight:rightIndex])
-	} else {
-		if keyRight < len(r) {
-			right = string(r[keyRight:])
-		}
-	}
-	right = fmt.Sprintf("%-*s", width-len(right), right)
-	var cl concord.ConcordanceLine
-	cl.ID = id
-	cl.Left = fmt.Sprintf("%*s", width+3, left)
-	cl.Key = key
-	cl.Right = right
-	cMap[cl.ID] = cl
-	return fmt.Sprintf("%*s%s%s", width+3, left, key, right)
-}
-
-// Find the index of a substring within []rune
-// This solves the following problem:
-// When we have a string of Greek, they are runes. If we take a slice,
-// we will get ? output for some characters.  The solution is to convert the
-// string to a []rune.  But, then, our search index won't work since the length
-// of the original string is > than the length of the []rune.
-func indexInRune(text []rune, what string) int {
-	whatRunes := []rune(what)
-	for i := range text {
-		found := true
-		for j := range whatRunes {
-			if text[i+j] != whatRunes[j] {
-				found = false
-				break
-			}
-		}
-		if found {
-			return i
-		}
-	}
-	return -1
-}
-
-// converts parameter of paddings to int and stores in settings.Padding for indicated index of 1..3
+// converts value to int and stores it in settings.Padding for indicated index of 1 to 3
 func setPadding(index int, value string) {
 	i, err := strconv.Atoi(value)
 	if err != nil {
@@ -1139,6 +713,7 @@ func isNumber(s string) bool {
 		return false
 	}
 }
+
 // set the context Library, Topic, and Key using the id
 func setContextId(id models.Id) {
 	if id.HasValues() {
@@ -1148,5 +723,408 @@ func setContextId(id models.Id) {
 		context.SetPath()
 	} else {
 		fmt.Printf("setContextId parse error. Expected library, topic, key\n")
+	}
+}
+
+// changes the virtual directory based on parameters supplied
+func changeDirectory(blocks []string) {
+	copyContext()
+	if len(blocks) < 2 {
+		context.Path = ""
+	} else if blocks[1] == "~" {
+		context.Path = resetPath()
+	} else if len(blocks) > 1 && isNumber(blocks[1]) {
+		index, err := strconv.Atoi(blocks[1])
+		if err != nil {
+			fmt.Println(err)
+		} else {
+
+			if len(idMap.Map[index].Domain.Country) > 0 {
+				setContextId(idMap.Map[index])
+			} else {
+				fmt.Printf("%s not found\n", blocks[1])
+			}
+		}
+	} else {
+		up, dirs := cdParts(blocks[1])
+		if len(up) > 0 {
+			if up == "~" {
+				context.Path = resetPath()
+			} else {
+				context.Path = popPath(up)
+			}
+		}
+		if len(dirs) > 0 {
+			s := strings.Split(dirs, pathDelimiter)
+			depth := context.Depth()
+			if depth+len(s) > 3 {
+				fmt.Println("You can't go deeper than 3 levels (library/topic/key).")
+			} else {
+				for _, segment := range s {
+					context.Path = pushPath(segment)
+				}
+			}
+		}
+		if context.Depth() == 3 {
+			if mapper.Exists(context.Library, context.Topic, context.Key) {
+				showValue(context.Library, context.Topic, context.Key)
+				if settings.Hints {
+					fmt.Printf("Hint: cmp to compare values for records with topic/key = %s/%s\n", context.Topic, context.Library)
+				}
+			} else {
+				revertContext()
+				fmt.Printf("%s not found\n", blocks[1])
+			}
+		} else {
+			reportCount()
+		}
+	}
+	setSuggestions()
+}
+
+// If the context is 3 levels deep, i.e. library/topic/key, displays value of all records with the same topic/key
+func compareValues() {
+	idMap.Reset()
+	if context.Depth() == 3 {
+		recs, err := mapper.ReadByTK(context.Topic, context.Key, settings.ShowEmpty)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		for i, rec := range recs {
+			idMap.Add(i+1, rec.ID)
+			fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
+			fmt.Printf("%4d %s\n", i+1, rec.ID)
+			fmt.Printf("%s\n", strings.Repeat("-", context.TWidth))
+			fmt.Println(rec.Value)
+		}
+		if settings.Hints {
+			l := len(idMap.Map)
+			fmt.Printf("\nHint: cd {number} to change directory, e.g. cd %d to change to %s\n", l, idMap.Map[l-1].ToPath())
+		}
+	} else {
+		fmt.Println("You must be three levels deep to use this command.")
+	}
+}
+func find(blocks []string) {
+	conc.Map = make(map[string]concord.ConcordanceLine)
+	idMap.Reset()
+	tWidth, tHeight, err := terminal.GetSize(0)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		context.THeight = tHeight
+		context.TWidth = tWidth
+	}
+
+	if len(blocks) == 1 {
+		fmt.Println("You must tell me what value to find")
+	} else {
+		value := escape(strings.Join(blocks[1:len(blocks)], " "))
+		if strings.Contains(value, "%") {
+			// at this time, it is unlikely that there is a % in liturgical text.
+			// But, just in case, we will escape the percent
+			value = strings.ReplaceAll(value, "%", "\\%")
+		}
+		var recs []*models.Ltx
+		var err error
+		var id string
+		if len(settings.IDlike) > 0 {
+			id = settings.IDlike
+		} else {
+			var sb strings.Builder
+			switch context.Depth() {
+			case 1:
+				sb.WriteString(context.Library)
+				sb.WriteString(pathDelimiter)
+				sb.WriteString("%")
+			case 2:
+				sb.WriteString(context.Library)
+				sb.WriteString(pathDelimiter)
+				sb.WriteString(context.Topic)
+				sb.WriteString(pathDelimiter)
+				sb.WriteString("%")
+			case 3:
+				sb.WriteString(context.Library)
+				sb.WriteString(pathDelimiter)
+				sb.WriteString(context.Topic)
+				sb.WriteString(pathDelimiter)
+				sb.WriteString(context.Key)
+			}
+			id = sb.String()
+		}
+		if settings.Exact {
+			recs, err = mapper.ReadByValue(id, value)
+		} else {
+			recs, err = mapper.ReadByNNP(id, value)
+		}
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			for _, rec := range recs {
+				var line = ""
+				if settings.Exact {
+					line = rec.Value
+				} else {
+					line = rec.NNP
+				}
+
+				conc.Line(fmt.Sprintf("%*s", settings.Padding.P2, rec.ID), line, value, settings.Width)
+			}
+			for i, res := range concord.SortedKeys(conc.Map, settings.Sort) {
+				idMap.Add(i+1, conc.Map[res].ID)
+				if len(strings.TrimSpace(conc.Map[res].ID)) > 50 {
+					parts := strings.Split(conc.Map[res].ID, pathDelimiter)
+					if len(parts) == 3 {
+						fmt.Printf("%*d |%s%s%s%s\n", settings.Padding.P1, i+1, parts[0], pathDelimiter, parts[1], pathDelimiter)
+						fmt.Printf("     | %*s | %-s%s%s\n", settings.Padding.P2, parts[2], conc.Map[res].Left, conc.Map[res].Key, conc.Map[res].Right)
+					} else {
+						// bad
+						fmt.Printf("%*d | %*s | %-s%s%s\n", settings.Padding.P1, i+1, settings.Padding.P2, conc.Map[res].ID, conc.Map[res].Left, conc.Map[res].Key, conc.Map[res].Right)
+					}
+				} else {
+					fmt.Printf("%*d | %*s | %-s%s%s\n", settings.Padding.P1, i+1, settings.Padding.P2, conc.Map[res].ID, conc.Map[res].Left, conc.Map[res].Key, conc.Map[res].Right)
+				}
+			}
+			var exact = "off"
+			if settings.Exact {
+				exact = "off"
+			}
+			fmt.Printf("%d records found. Find .exact %s. To change: .exact on or .exact off", len(recs), exact)
+			if len(settings.IDlike) > 0 {
+				fmt.Printf(".idlike = %s, so current path was not used. To turn off: idlike %%", settings.IDlike)
+			}
+			fmt.Println("")
+			if settings.Hints {
+				fmt.Printf("Hint: use cd {number} to change directory to a library/topic/key, e.g. cd %d\n", 2322)
+			}
+		}
+	}
+}
+func showHelp() {
+	for _, command := range commands {
+		fmt.Printf("%s:\t%s\n", command.Text, command.Description)
+	}
+	fmt.Println("")
+	fmt.Println("Commands that start with a dot are for the settings.")
+	fmt.Println("The settings affect the way the other commands behave.")
+	fmt.Printf("As you type, suggestions will appear as a pop up.\nTab to set focus on the pop up.\nYou can scroll up or down using the arrow keys.\nUse the <Enter> key to select an item in the pop up.\n")
+	fmt.Println("You can also use the up and down keys to scroll through previously issued commands.")
+}
+
+// show Topic-Key as LML Topic-Key. One use of the shell is when the user is creating templates and is trying to find
+// a topic-Key.  This function will display the topic-key in the correct format
+// for the liturgical markup language. Note that LML does not use libraries in the template.
+// The libraries are prefixed to LML topic-keys when books/services are generated.
+func showTKAsLML() {
+	if context.Depth() == 3 {
+		msg := fmt.Sprintf(`"%s%s%s"`, context.Topic, pathDelimiter, context.Key)
+		fmt.Println(msg)
+	} else {
+		fmt.Println("You must be three levels deep to use this command")
+	}
+}
+
+// Lists libraries if context.Depth() == 0, topics if == 1, keys if == 2, record value if == 3.
+// If blocks[1] == "empty" it will list ids of records with an empty redirect and empty value column.
+// If blocks[1] == "redirects" it will list ids of records with redirects.
+func list(blocks []string) {
+	if len(blocks) > 1 && blocks[1] == "empty" {
+		idMap.Reset()
+		like := context.Like()
+		ids, err := mapper.Empty(like)
+		if err != nil {
+			Logger.Print(err)
+		}
+		for i, id := range ids {
+			idMap.Add(i+1, id)
+			fmt.Printf("%4d %s\n", i+1, id)
+		}
+		fmt.Printf("%d empty records found\n", len(ids))
+	} else if len(blocks) > 1 && blocks[1] == "redirects" {
+		idMap.Reset()
+		like := context.Like()
+		if context.Depth() < 3 {
+			redirects, err := mapper.Redirects(like)
+			if err != nil {
+				Logger.Print(err)
+			}
+			for i, redirect := range redirects {
+				idMap.Add(i+1, redirect.ID)
+				fmt.Printf("%4d %s ==> %s\n", i+1, redirect.ID, redirect.Redirect)
+			}
+		} else {
+			redirects, err := mapper.ReferredTo(like)
+			if err != nil {
+				Logger.Print(err)
+			}
+			for i, redirect := range redirects {
+				idMap.Add(i+1, redirect.Redirect)
+				fmt.Printf("%4d %s <== %s\n", i+1, redirect.Redirect, redirect.ID)
+			}
+		}
+	} else if len(blocks) > 1 && isNumber(blocks[1]) {
+		index, err := strconv.Atoi(blocks[1])
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			if idMap.Map[index].HasValues() {
+				id := idMap.Map[index]
+				showValue(id.Domain.ToNeo(), id.Topic, id.Key)
+			} else {
+				fmt.Printf("%s not found\n", blocks[1])
+			}
+		}
+	} else {
+		if context.Depth() < 3 {
+			idMap.Reset()
+		}
+		switch context.Depth() {
+		case 0:
+			{ // list all libraries in database
+				libraries, err := mapper.Libraries()
+				if err != nil {
+					Logger.Print(err)
+				}
+				for i, library := range libraries {
+					var id models.Id
+					var d models.Domain
+					d.Parse(library)
+					id.Domain = d
+					idMap.Add(i+1, id.ToSQLId())
+					fmt.Printf("%4d %s\n", i+1, library)
+				}
+				if settings.Hints {
+					fmt.Printf("Hint: use cd {number} to change directory to that library, e.g. cd %d\n", len(libraries))
+				}
+			}
+		case 1:
+			{ // list topics for current library
+				var like = context.Library
+				if len(blocks) > 1 {
+					like = like + pathDelimiter + blocks[1]
+				}
+				topics, err := mapper.Topics(like)
+				if err != nil {
+					Logger.Print(err)
+				}
+				for i, topic := range topics {
+					var id models.Id
+					var d models.Domain
+					d.Parse(context.Library)
+					id.Domain = d
+					id.Topic = topic
+					idMap.Add(i+1, id.ToSQLId())
+					fmt.Printf("%4d %s\n", i+1, topic)
+				}
+				if settings.Hints {
+					fmt.Printf("Hint: use cd {number} to change directory to a library/topic, e.g. cd %d\n", len(topics))
+				}
+			}
+		case 2:
+			{ // list keys for current library/topic
+				var like = context.Library + pathDelimiter + context.Topic
+				if len(blocks) > 1 {
+					like = like + pathDelimiter + blocks[1]
+				}
+				keys, err := mapper.Keys(like)
+				if err != nil {
+					Logger.Print(err)
+				}
+				for i, key := range keys {
+					var id models.Id
+					var d models.Domain
+					d.Parse(context.Library)
+					id.Domain = d
+					id.Topic = context.Topic
+					id.Key = key
+					idMap.Add(i+1, id.ToSQLId())
+					fmt.Printf("%4d %s\n", i+1, key)
+				}
+				if settings.Hints {
+					fmt.Printf("Hint: use cd {number} to change directory to a library/topic/key, e.g. cd %d\n", len(keys))
+				}
+			}
+		case 3:
+			{ // Display the value of the key
+				showValue(context.Library, context.Topic, context.Key)
+			}
+		}
+	}
+}
+// For the record whose id matches the context, sets the specified column
+// which can be comment, redirect, or value.
+func setRecord(blocks []string) {
+	if context.Depth() < 3 {
+		fmt.Println("You must be three levels deep to use the set command")
+		return
+	}
+	rec, err := mapper.ReadByLTK(context.Library, context.Topic, context.Key)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		var prompt = fmt.Sprintf("set what, to what?\nExample 1: set value PRIEST\nExample 2: set redirect gr_gr_cog/template.titles/d.onSaturdayEvening\nExample 3: set comment kairos prayer\nTo set blank: set value '' or set value \"\"\n")
+		value := ""
+		if len(blocks) > 1 {
+			if len(blocks) > 2 {
+				value = escape(strings.Join(blocks[2:len(blocks)], " "))
+				switch blocks[1] {
+				case "comment":
+					if value == "''" || value == "\\\"\\\"" {
+						value = ""
+					}
+					rec.Comment = value
+				case "redirect":
+					if rec.Redirect == "''" || value == "\\\"\\\"" {
+						value = ""
+						rec.SetRedirect(value)
+					} else {
+						var id models.Id
+						id.Parse(value)
+						if ! mapper.Exists(id.Domain.ToNeo(), id.Topic, id.Key) {
+							fmt.Printf("Does not exist in database: %s\n", value)
+							return
+						}
+						if context.Library != id.Domain.ToNeo() {
+							fmt.Println("You can only redirect to an ID in the same library")
+							return
+						}
+						if context.Path == id.ToPath() {
+							fmt.Println("You can not redirect a record to itself")
+							return
+						}
+						rec.SetRedirect(value)
+					}
+				case "value":
+					if value == "''" || value == "\\\"\\\"" {
+						value = ""
+					}
+					rec.SetValue(value)
+				default:
+					fmt.Println(prompt)
+				}
+				err = mapper.Merge(rec)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				switch blocks[1] {
+				case "comment":
+					fmt.Println(rec.Comment)
+				case "redirect":
+					if len(rec.Redirect) > 0 {
+						idMap.Reset()
+						idMap.Add(1, value)
+					}
+					fmt.Printf("Redirects to: 1 %s\n", rec.Redirect)
+				case "value":
+					fmt.Println(rec.Value)
+				}
+			} else {
+				fmt.Println(prompt)
+			}
+		} else {
+			fmt.Println(prompt)
+		}
 	}
 }
