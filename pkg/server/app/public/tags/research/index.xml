@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>research on Doxa</title>
+    <link>../tags/research/</link>
+    <description>Recent content in research on Doxa</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 01 May 2018 07:39:12 +1000</lastBuildDate>
+    
+	<atom:link href="../tags/research/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Comment</title>
+      <link>../commentary/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../commentary/</guid>
+      <description>Information about creating commentaries for liturgical texts will be here.</description>
+    </item>
+    
+    <item>
+      <title>Research</title>
+      <link>../research/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../research/</guid>
+      <description>Information about researching liturgical texts will be here.</description>
+    </item>
+    
+  </channel>
+</rss>

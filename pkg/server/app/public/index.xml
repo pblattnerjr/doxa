@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Doxa</title>
+    <link>../</link>
+    <description>Recent content on Doxa</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 12 May 2018 13:49:50 +1000</lastBuildDate>
+    
+	<atom:link href="../index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Contact</title>
+      <link>../contact/</link>
+      <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
+      
+      <guid>../contact/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Create Template - Editor</title>
+      <link>../createtemplate/</link>
+      <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
+      
+      <guid>../createtemplate/</guid>
+      <description>             	  </description>
+    </item>
+    
+    <item>
+      <title>Create Text</title>
+      <link>../createtext/</link>
+      <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
+      
+      <guid>../createtext/</guid>
+      <description>This is the page for creating texts.</description>
+    </item>
+    
+    <item>
+      <title>Search Templates</title>
+      <link>../searchtemplates/</link>
+      <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
+      
+      <guid>../searchtemplates/</guid>
+      <description>This is the template search page.</description>
+    </item>
+    
+    <item>
+      <title>Search Texts</title>
+      <link>../searchdatabase/</link>
+      <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
+      
+      <guid>../searchdatabase/</guid>
+      <description></description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,82 @@
+.header { /** navbar on any page **/
+  color: black !important;
+  font-style: italic;
+  text-shadow: 2px 2px 4px #000000;
+}
+.home-header { /** navbar on landing page **/
+  padding-top: 3px;
+  padding-bottom: 0px;
+}
+.page-header { /** navbar on sub-pages **/
+  padding-top: 3px !important;
+  padding-bottom: 0px;
+}
+.banner {
+  /** padding-top controls how much top of banner.jpg is visible **/
+  /** It is expressed in vh, which is viewport height. **/
+  /** You may change the value but not the units. **/
+  padding-top: 30vh !important; 
+  text-shadow: 2px 2px 4px #000000; /** for banner sub-title **/
+  color: goldenrod !important;
+  font-weight: 900;
+}
+.banner-title { /** for banner main title **/
+  font-weight: 900;
+  text-shadow: 2px 2px 4px #000000;
+  color: goldenrod !important;
+}
+.logo-row {
+  margin: 0;
+  position: absolute;
+  top: 0.5vh;
+  left: -3vh;
+  /* transform: translate(-50%, -50%); */
+}
+.site-logo {
+  position: relative;
+  top: 4px;
+}
+/* .site-title {
+  margin: 0;
+  position: relative;
+  top: 1.5vh;
+  left: 3%;
+  display: inline-block;
+  transform: translate(-50%, -50%);
+  font-size: x-large !important;
+  font-weight: 900;
+  text-shadow: 2px 2px 4px #000000;
+} */
+.site-title {
+  font-weight: 900;
+  text-shadow: 2px 2px 4px #000000;
+  color: goldenrod !important;
+  padding-left: 30px;
+}
+.site-title > a {
+  border-bottom: none !important;
+}
+.App-img-logo {
+  position: center !important;
+  margin-top: 10px !important;
+  margin-left: 10px !important;
+  margin-right: 30px !important;
+}
+a > div > p {
+  color: black !important;
+  font-style: italic;
+}
+.landing {
+  background-color: #7fcdb8;
+}
+.header {
+  background-color: black !important;
+}
+.doxa-title {
+  font-weight: 900;
+  font-style: italic;
+  color: goldenrod !important;
+}
+.box {
+  padding-top: 0px !important;
+}

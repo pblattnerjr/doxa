@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>publish on Doxa</title>
+    <link>../tags/publish/</link>
+    <description>Recent content in publish on Doxa</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 01 May 2018 07:39:12 +1000</lastBuildDate>
+    
+	<atom:link href="../tags/publish/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Publish</title>
+      <link>../publish/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../publish/</guid>
+      <description>Information about publishing generated books or services to a website will go here.</description>
+    </item>
+    
+    <item>
+      <title>Publish Website</title>
+      <link>../publishwebsite/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../publishwebsite/</guid>
+      <description>Information about publishing to a website will be here.</description>
+    </item>
+    
+  </channel>
+</rss>
