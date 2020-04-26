@@ -13,9 +13,9 @@ import (
 
 var router *mux.Router
 
-func Serve(db string, port string) {
-	go webapi.Serve(db, "8090")
-	if err := run(port); err != nil {
+func Serve(db , appport, apiport string) {
+	go webapi.Serve(db, apiport)
+	if err := run(appport); err != nil {
 		log.Fatal(err)
 	}
 }

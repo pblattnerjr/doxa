@@ -4,7 +4,6 @@ import (
 	webapi "github.com/liturgiko/doxa/pkg/server/api"
 	webapp "github.com/liturgiko/doxa/pkg/server/app"
 	"github.com/spf13/cobra"
-	"time"
 )
 
 var api bool
@@ -16,20 +15,18 @@ var serveCmd = &cobra.Command{
 	Long: `serve runs an http server with access to the liturgical database.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		start := time.Now()
+		appPort := "8080"
+		apiPort := "8090"
 		if api {
-			webapi.Serve(Paths.DbPath, "8090")
+			webapi.Serve(Paths.DbPath, apiPort)
+		} else {
+			webapp.Serve(Paths.DbPath,appPort, apiPort)
 		}
-		if app {
-			webapp.Serve(Paths.DbPath,"8080")
-		}
-		Elapsed(start)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-	serveCmd.Flags().BoolVar(&api, "api", false, "serve using rest api")
-	serveCmd.Flags().BoolVar(&app, "app", false, "serve using app. Will also start api.")
+	serveCmd.Flags().BoolVar(&api, "api", false, "serve using only the rest api")
 }
 
