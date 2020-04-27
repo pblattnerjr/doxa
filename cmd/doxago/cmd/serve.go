@@ -20,7 +20,7 @@ var serveCmd = &cobra.Command{
 		if api {
 			webapi.Serve(Paths.DbPath, apiPort)
 		} else {
-			webapp.Serve(Paths.DbPath,appPort, apiPort)
+			webapp.Serve(Paths.DbPath,appPort, apiPort, false)
 		}
 	},
 }
