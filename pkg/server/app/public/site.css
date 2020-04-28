@@ -57,8 +57,7 @@
   border-bottom: none !important;
 }
 .App-img-logo {
-  position: center !important;
-  margin-left: 10px !important;
+  margin-top: 0.4em !important;
 }
 a > div > p {
   color: black !important;

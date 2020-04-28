@@ -23,6 +23,7 @@ import (
 	"fmt"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/liturgiko/doxa/pkg/models"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -517,3 +518,27 @@ func (m *LtxMapper) Exists(library, topic, key string) bool {
 	c, _ := m.CountKeys(library, topic, key)
 	return c == 1
 }
+// nnp and nwp properties are set correctly.
+func NewLtx(library, topic, key, value, comment, redirect string) *models.Ltx {
+	d := models.Domain{}
+	err := d.Parse(library)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	id := &models.Id{}
+	id.Domain = d
+	id.Topic = topic
+	id.Key = key
+	l := models.Ltx{}
+	l.ID = id.ToNeoId()
+	l.Library = library
+	l.Topic = topic
+	l.Key = key
+	l.Comment = comment
+	l.Redirect = redirect
+	l.SetValue(value)
+	l.CreatedWhen = time.Now().String()
+	l.ModifiedWhen = time.Now().String()
+	return &l
+}
+
