@@ -11,12 +11,39 @@ import (
 	"net/http"
 	"os/exec"
 	"runtime"
+	"time"
 )
 
 var ctx context.Context
 var cancel context.CancelFunc
 
+/**
+Serve runs an http server for the Doxa web app.
+db is the file path to the sqlite3 database.
+apport is the port to be used for the web app.
+apiport is the port for the REST api.
+cloud = true means we are running in a cloud server
+      = false means we are running locally
+
+Because many users are not use to working with URLs that have an explicit port,
+and because they might forget to issue the quit command from the web app,
+two things are done:
+1. When the server starts, it automatically opens a browser using the local
+   address and port.
+2. Before the server starts, it issues a quit via http.Get() to shutdown any
+   locally running instance.  Then starts this instance up.
+ */
 func Serve(db , appport, apiport string, cloud bool) {
+	if ! cloud { // close other local instance in case user forgot to.
+		log.Println("Shutting down any previous local instance...")
+		_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/quit",appport))
+		if err != nil {
+			log.Println("No local instance running.")
+		} else {
+			log.Println("Local instance found and stopped.")
+		}
+		time.Sleep(2 * time.Second)
+	}
 	ctx, cancel = context.WithCancel(context.Background())
 	go webapi.Serve(db, apiport)
 	srv := &http.Server{Addr: ":" + appport}

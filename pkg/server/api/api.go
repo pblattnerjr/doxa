@@ -78,7 +78,7 @@ func Serve(dbname, port string) {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-	log.Printf("doxa api is listening on port %s\n", port)
+	log.Printf("doxa api is listening on http://127.0.0.1:%s\n", port)
 	log.Printf("doxa db is at %s\n", dbname)
 	log.Fatal(srv.http.ListenAndServe())
 }
