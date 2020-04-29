@@ -35,7 +35,6 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -84,8 +83,6 @@ func Execute() {
 }
 
 func init() {
-	var cloud = strings.ToLower(os.Getenv("cloud"))
-	inCloud := cloud == "true"
 	initConfig()
 	DOXAPORT = os.Getenv("appport")
 	if len(DOXAPORT) == 0 {
@@ -98,7 +95,7 @@ func init() {
 	if len(APIPORT) == 0 {
 		APIPORT = "8090"
 	}
-	app.Serve(Paths.DbPath,"8080", "8090", inCloud)
+	app.ServeLocal(Paths.DbPath, Paths.SitePath,DOXAPORT, APIPORT)
 }
 
 // initConfig reads in config file and ENV variables if setRecord.

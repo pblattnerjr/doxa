@@ -1,5 +1,4 @@
 .header { /** navbar on any page **/
-  color: black !important;
   font-style: italic;
   text-shadow: 2px 2px 4px #000000;
 }
@@ -34,46 +33,9 @@
 }
 .site-logo {
   position: relative;
-  top: 4px;
 }
-/* .site-title {
-  margin: 0;
-  position: relative;
-  top: 1.5vh;
-  left: 3%;
-  display: inline-block;
-  transform: translate(-50%, -50%);
-  font-size: x-large !important;
-  font-weight: 900;
-  text-shadow: 2px 2px 4px #000000;
-} */
 .site-title {
-  font-weight: 900;
-  text-shadow: 2px 2px 4px #000000;
-  color: goldenrod !important;
-  padding-left: 30px;
-}
-.site-title > a {
-  border-bottom: none !important;
-}
-.App-img-logo {
-  margin-top: 0.4em !important;
-}
-a > div > p {
-  color: black !important;
-  font-style: italic;
-}
-.landing {
-  background-color: #7fcdb8;
-}
-.header {
-  background-color: black !important;
-}
-.doxa-title {
-  font-weight: 900;
-  font-style: italic;
-  color: goldenrod !important;
-}
-.box {
-  padding-top: 0px !important;
+  position: relative;
+  top: 5px;
+  left: -30px;
 }

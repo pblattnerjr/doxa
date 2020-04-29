@@ -8,6 +8,7 @@ import (
 
 var api bool
 var app bool
+var site bool
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
@@ -16,11 +17,14 @@ var serveCmd = &cobra.Command{
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		appPort := "8080"
+		sitePort := "8085"
 		apiPort := "8090"
-		if api {
+		if api { // serve only the api
 			webapi.Serve(Paths.DbPath, apiPort)
-		} else {
-			webapp.Serve(Paths.DbPath,appPort, apiPort, false)
+		} else if site {
+			webapp.ServeGeneratedSite(Paths.SitePath, sitePort)
+		} else { // serve both the web app and the api, locally
+			webapp.ServeLocal(Paths.DbPath,Paths.SitePath, appPort, apiPort)
 		}
 	},
 }
@@ -28,5 +32,6 @@ var serveCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(serveCmd)
 	serveCmd.Flags().BoolVar(&api, "api", false, "serve using only the rest api")
+	serveCmd.Flags().BoolVar(&site, "site", false, "serve generated site only")
 }
 

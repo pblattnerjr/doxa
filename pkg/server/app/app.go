@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -18,12 +19,11 @@ var ctx context.Context
 var cancel context.CancelFunc
 
 /**
-Serve runs an http server for the Doxa web app.
-db is the file path to the sqlite3 database.
+ServeLocal runs an http server for the Doxa web app.
+dbpath is the file path to the sqlite3 database.
+sitepath is the file path to the local generated website.
 apport is the port to be used for the web app.
 apiport is the port for the REST api.
-cloud = true means we are running in a cloud server
-      = false means we are running locally
 
 Because many users are not use to working with URLs that have an explicit port,
 and because they might forget to issue the quit command from the web app,
@@ -33,8 +33,7 @@ two things are done:
 2. Before the server starts, it issues a quit via http.Get() to shutdown any
    locally running instance.  Then starts this instance up.
  */
-func Serve(db , appport, apiport string, cloud bool) {
-	if ! cloud { // close other local instance in case user forgot to.
+func ServeLocal(dbpath, sitepath, appport, apiport string) {
 		log.Println("Shutting down any previous local instance...")
 		_, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/quit",appport))
 		if err != nil {
@@ -43,23 +42,25 @@ func Serve(db , appport, apiport string, cloud bool) {
 			log.Println("Local instance found and stopped.")
 		}
 		time.Sleep(2 * time.Second)
-	}
 	ctx, cancel = context.WithCancel(context.Background())
-	go webapi.Serve(db, apiport)
+	go webapi.Serve(dbpath, apiport)
 	srv := &http.Server{Addr: ":" + appport}
 	http.HandleFunc("/quit", func(w http.ResponseWriter, r *http.Request) {
-		if cloud {
-			io.WriteString(w, "<html><body><h2>To quit, close this tab or the browser. Glory to God for all things!</h2></body></html>")
-		} else {
-			io.WriteString(w, "<html><body><h2>Doxa has stopped. You may close this tab. Glory to God for all things!</h2></body></html>")
-			cancel()
-		}
+	io.WriteString(w, "<html><body><h2>Doxa has stopped. You may close this tab. Glory to God for all things!</h2></body></html>")
+	cancel()
 	})
 	http.Handle("/", http.FileServer(rice.MustFindBox("public").HTTPBox()))
-	log.Printf("doxa app is running at http://127.0.0.1:%s\n", appport)
-	if ! cloud { // so localhost user does not have to type the url and port
-		openBrowser(fmt.Sprintf("http://127.0.0.1:%s",appport))
+	// set up handler for local generated website
+	if _, err := os.Stat(sitepath); os.IsNotExist(err) {
+		log.Printf("Local website path does not exist: %s\n", sitepath)
+	} else {
+		fs := http.FileServer(http.Dir(sitepath))
+		http.Handle("/site/", http.StripPrefix( "/site", fs))
+		log.Printf("generated site is at http://127.0.0.1:%s/site/",appport)
 	}
+	log.Printf("doxa app is running at http://127.0.0.1:%s\n", appport)
+	openBrowser(fmt.Sprintf("http://127.0.0.1:%s",appport))
+
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Printf("Httpserver: ListenAndServe() error: %s", err)
@@ -70,6 +71,20 @@ func Serve(db , appport, apiport string, cloud bool) {
 		log.Println(err)
 	}
 	log.Println("done.")
+}
+func ServeGeneratedSite(path, port string) {
+	// add a handler for the local generated web site
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		log.Printf("Local website path does not exist: %s\n",path)
+	} else {
+		fs := http.FileServer(http.Dir(path))
+		http.Handle("/", fs)
+		log.Printf("generated site is at http://127.0.0.1:%s",port)
+		err := http.ListenAndServe(":" + port, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 func openBrowser(url string) {
 	var err error
