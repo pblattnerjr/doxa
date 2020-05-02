@@ -25,10 +25,10 @@ import (
 )
 
 
-var generateCmd = &cobra.Command{
-	Use:   "generate",
-	Short: "generates files from templates using settings from the config file",
-	Long: `generates files from templates using settings from the config file`,
+var buildCmd = &cobra.Command{
+	Use:   "build",
+	Short: "build liturgical website",
+	Long: `build liturgical website from templates based on settings in the config file`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		start := time.Now()
@@ -49,10 +49,10 @@ var generateCmd = &cobra.Command{
 		extension := viper.GetString("generate.template.extension")
 //		types := viper.GetStringSlice("generate.output.types")
 
-		msg := fmt.Sprintf("generating...\n")
+		msg := fmt.Sprintf("building...\n")
 		fmt.Println(msg)
 		Logger.Println(msg)
-		if err = 	lt.Generate(Paths.TemplatesPath,
+		if err = 	lt.Build(Paths.TemplatesPath,
 			Paths.DbPath,
 			Paths.SitePath,
 			patterns,
@@ -66,6 +66,6 @@ var generateCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(generateCmd)
+	rootCmd.AddCommand(buildCmd)
 }
 

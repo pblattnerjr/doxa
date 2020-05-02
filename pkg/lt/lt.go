@@ -301,7 +301,7 @@ func GetRecord(id string) (models.Ltx, error) {
 var Db *sqlx.DB
 
 // For each domain, generate files of specified types whose names match one of the patterns
-func Generate(templatesDir string,
+func Build(templatesDir string,
 	dbPath string, // path to the sqlite database
 	siteDir string, // path to the website directory
 	patterns []string, // regular expressions to match template filenames to use for generation
