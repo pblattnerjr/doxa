@@ -21,6 +21,15 @@
     </item>
     
     <item>
+      <title>Generate Doc</title>
+      <link>../generatedoc/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../generatedoc/</guid>
+      <description>Information about generating the contents of a website will be here.</description>
+    </item>
+    
+    <item>
       <title>Generate Website</title>
       <link>../generatewebsite/</link>
       <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>

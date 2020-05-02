@@ -38,5 +38,14 @@
       <description>About OLW</description>
     </item>
     
+    <item>
+      <title>Photo on Home Page</title>
+      <link>../about/photo/</link>
+      <pubDate>Mon, 30 Apr 2018 10:05:49 +1000</pubDate>
+      
+      <guid>../about/photo/</guid>
+      <description>The home page of Doxa shows the chapel in the St. Photios Greek Orthodox National Shrine, which gave permission for its use.</description>
+    </item>
+    
   </channel>
 </rss>

@@ -21,12 +21,12 @@
     </item>
     
     <item>
-      <title>Create Text</title>
-      <link>../createtext/</link>
+      <title>Design Stylesheets</title>
+      <link>../designstylesheets/</link>
       <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
       
-      <guid>../createtext/</guid>
-      <description>This is the page for creating texts.</description>
+      <guid>../designstylesheets/</guid>
+      <description>This is the page for designing blocks of texts.</description>
     </item>
     
     <item>
@@ -35,7 +35,16 @@
       <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
       
       <guid>../designtemplates/</guid>
-      <description>             	  </description>
+      <description>/** Example template written in the Liturgical Markup Language (.lml) Templates can be written using any text editor. This example uses a Codemirror editor in a browser, using the Twilight theme. The themes can be changed by the user. Future features of editor: -- lookup keywords for autocompletion. -- Lookup css classes for autocompletion. -- Lookup topic-keys -- Lookup template paths -- Search db text to find desired topic/key -- Verify the template is syntactically correct.</description>
+    </item>
+    
+    <item>
+      <title>Design Text Blocks</title>
+      <link>../designblocks/</link>
+      <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
+      
+      <guid>../designblocks/</guid>
+      <description>This is the page for designing blocks of texts.</description>
     </item>
     
     <item>
@@ -45,15 +54,6 @@
       
       <guid>../searchtemplates/</guid>
       <description>This is the template search page.</description>
-    </item>
-    
-    <item>
-      <title>Search Texts</title>
-      <link>../searchdatabase/</link>
-      <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
-      
-      <guid>../searchdatabase/</guid>
-      <description></description>
     </item>
     
   </channel>

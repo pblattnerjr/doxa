@@ -13,7 +13,7 @@
   </url>
   
   <url>
-    <loc>../createtext/</loc>
+    <loc>../designstylesheets/</loc>
     <lastmod>2018-05-12T13:49:50+10:00</lastmod>
   </url>
   
@@ -23,12 +23,17 @@
   </url>
   
   <url>
+    <loc>../designblocks/</loc>
+    <lastmod>2018-05-12T13:49:50+10:00</lastmod>
+  </url>
+  
+  <url>
     <loc>../searchtemplates/</loc>
     <lastmod>2018-05-12T13:49:50+10:00</lastmod>
   </url>
   
   <url>
-    <loc>../searchdatabase/</loc>
+    <loc>../searchtext/</loc>
     <lastmod>2018-05-12T13:49:50+10:00</lastmod>
   </url>
   
@@ -48,12 +53,27 @@
   </url>
   
   <url>
-    <loc>../commentary/</loc>
+    <loc>../design/</loc>
     <lastmod>2018-05-01T07:39:12+10:00</lastmod>
   </url>
   
   <url>
-    <loc>../translate/</loc>
+    <loc>../tags/design/</loc>
+    <lastmod>2018-05-01T07:39:12+10:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>../tags/doc/</loc>
+    <lastmod>2018-05-01T07:39:12+10:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>../edit/</loc>
+    <lastmod>2018-05-01T07:39:12+10:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>../tags/edit/</loc>
     <lastmod>2018-05-01T07:39:12+10:00</lastmod>
   </url>
   
@@ -68,7 +88,17 @@
   </url>
   
   <url>
+    <loc>../generatedoc/</loc>
+    <lastmod>2018-05-01T07:39:12+10:00</lastmod>
+  </url>
+  
+  <url>
     <loc>../generatewebsite/</loc>
+    <lastmod>2018-05-01T07:39:12+10:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>../tags/initializer/</loc>
     <lastmod>2018-05-01T07:39:12+10:00</lastmod>
   </url>
   
@@ -88,38 +118,28 @@
   </url>
   
   <url>
-    <loc>../research/</loc>
+    <loc>../tags/run/</loc>
     <lastmod>2018-05-01T07:39:12+10:00</lastmod>
   </url>
   
   <url>
-    <loc>../tags/research/</loc>
+    <loc>../runinitializer/</loc>
     <lastmod>2018-05-01T07:39:12+10:00</lastmod>
   </url>
   
   <url>
-    <loc>../reuse/</loc>
+    <loc>../runsynchronizer/</loc>
     <lastmod>2018-05-01T07:39:12+10:00</lastmod>
   </url>
   
   <url>
-    <loc>../tags/templates/</loc>
-    <lastmod>2018-05-01T07:39:12+10:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>../tags/translate/</loc>
+    <loc>../tags/synchronizer/</loc>
     <lastmod>2018-05-01T07:39:12+10:00</lastmod>
   </url>
   
   <url>
     <loc>../tags/website/</loc>
     <lastmod>2018-05-01T07:39:12+10:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>../about/</loc>
-    <lastmod>2018-04-30T10:05:49+10:00</lastmod>
   </url>
   
   <url>
@@ -138,11 +158,6 @@
   </url>
   
   <url>
-    <loc>../books/</loc>
-    <lastmod>2018-04-30T10:05:49+10:00</lastmod>
-  </url>
-  
-  <url>
     <loc>../about/doxa/</loc>
     <lastmod>2018-04-30T10:05:49+10:00</lastmod>
   </url>
@@ -153,12 +168,12 @@
   </url>
   
   <url>
-    <loc>../services/</loc>
+    <loc>../about/olw/</loc>
     <lastmod>2018-04-30T10:05:49+10:00</lastmod>
   </url>
   
   <url>
-    <loc>../about/olw/</loc>
+    <loc>../about/photo/</loc>
     <lastmod>2018-04-30T10:05:49+10:00</lastmod>
   </url>
   

@@ -12,6 +12,33 @@
     
     
     <item>
+      <title>design</title>
+      <link>../tags/design/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../tags/design/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>doc</title>
+      <link>../tags/doc/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../tags/doc/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>edit</title>
+      <link>../tags/edit/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../tags/edit/</guid>
+      <description></description>
+    </item>
+    
+    <item>
       <title>generate</title>
       <link>../tags/generate/</link>
       <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
@@ -21,38 +48,11 @@
     </item>
     
     <item>
-      <title>publish</title>
-      <link>../tags/publish/</link>
+      <title>initializer</title>
+      <link>../tags/initializer/</link>
       <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
       
-      <guid>../tags/publish/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>research</title>
-      <link>../tags/research/</link>
-      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
-      
-      <guid>../tags/research/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>templates</title>
-      <link>../tags/templates/</link>
-      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
-      
-      <guid>../tags/templates/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>translate</title>
-      <link>../tags/translate/</link>
-      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
-      
-      <guid>../tags/translate/</guid>
+      <guid>../tags/initializer/</guid>
       <description></description>
     </item>
     
