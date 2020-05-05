@@ -11,24 +11,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// TODO: Currently this command calls lt.build, which was a go template based solution for liturgical templates.  Replace it with site.build.
+// TODO: once AGES is using Doxa instead of ALWB, this command may be removed
 package cmd
 
 import (
 	"fmt"
-	"github.com/liturgiko/doxa/pkg/lt"
+	"github.com/liturgiko/doxa/pkg/temp/atem2liml"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"log"
 	"os"
 	"time"
 )
 
 
-var buildCmd = &cobra.Command{
-	Use:   "build",
-	Short: "build liturgical website",
-	Long: `build liturgical website from templates based on settings in the config file`,
+var atem2lmlCmd = &cobra.Command{
+	Use:   "atem2lml",
+	Short: "convert atem files to lml files",
+	Long: `convert AGES atem template files to liturgical markup language (lml) files`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		start := time.Now()
@@ -43,22 +42,11 @@ var buildCmd = &cobra.Command{
 		Logger.SetOutput(LogFile)
 		Logger.SetFlags(log.Ldate + log.Ltime + log.Lshortfile)
 
-		// get the flags
-		domains := viper.GetStringSlice("generate.domains")
-		patterns := viper.GetStringSlice("generate.template.filename.patterns")
-		extension := viper.GetString("generate.template.extension")
-//		types := viper.GetStringSlice("generate.output.types")
-
-		msg := fmt.Sprintf("building...\n")
+		msg := fmt.Sprintf("converting atem to lml...\n")
 		fmt.Println(msg)
 		Logger.Println(msg)
-		if err = 	lt.Build(Paths.TemplatesPath,
-			Paths.DbPath,
-			Paths.SitePath,
-			patterns,
-			extension,
-			domains,
-			); err != nil {
+		dir := "~/git/ages/atem/ages-alwb-templates/net.ages.liturgical.workbench.templates/a-templates"
+		if err = atem2lml.Process(dir); err != nil {
 			Logger.Println(err.Error())
 		}
 		Elapsed(start)
@@ -66,6 +54,6 @@ var buildCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(buildCmd)
+	rootCmd.AddCommand(atem2lmlCmd)
 }
 

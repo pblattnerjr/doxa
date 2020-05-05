@@ -1,6 +1,4 @@
-// file utilities for processing liturgical texts
-// The package is essentially a file package, but has
-// lt as a prefix to avoid name collisions.
+// Package ltfile provides file utilities for processing liturgical texts
 package ltfile
 
 import (
@@ -9,14 +7,15 @@ import (
 	"html/template"
 	"log"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 )
 
-// FileExists returns true if final segment of the path exists and is not a directory.
-// path is the path to the file and the filename as the final part of the path.
+// FileExists returns true if the final segment of the path exists and is not a directory.
 func FileExists(path string) bool {
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
@@ -24,7 +23,7 @@ func FileExists(path string) bool {
 	}
 	return !info.IsDir()
 }
-// DirExists returns true of the final segment of the path exists and is a directory
+// DirExists returns true if the final segment of the path exists and is a directory
 func DirExists(path string) bool {
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
@@ -33,7 +32,7 @@ func DirExists(path string) bool {
 	return info.IsDir()
 }
 // CreateDir will create a directory if it does not exist.
-// If it does exist, error is nil.
+// The error will be nil unless something is wrong with the path.
 func CreateDir(path string) error {
 	var err error = nil
 	if ! DirExists(path) {
@@ -41,8 +40,8 @@ func CreateDir(path string) error {
 	}
 	return err
 }
-// CreateDirs will create directory and parents in path if they do not exist.
-// If they does exist, error is nil.
+// CreateDirs creates the specified directory and parents in path if they do not exist.
+// The error will be nil unless something is wrong with the path.
 func CreateDirs(path string) error {
 	var err error = nil
 	if ! DirExists(path) {
@@ -50,6 +49,7 @@ func CreateDirs(path string) error {
 	}
 	return err
 }
+// WriteFile writes the supplied content using the filename.
 func WriteFile(filename, content string) error {
 	f, err := os.Create(filename)
 	defer f.Close()
@@ -59,7 +59,7 @@ func WriteFile(filename, content string) error {
 	w.Flush()
 	return err
 }
-// Parses the html template and writes it to the filename provided.
+// HTMLTemplateToFile parses the html template and writes it to the filename provided.
 // name: the name of the template
 // html: the template
 // filename: the name of the html file including its path
@@ -79,14 +79,18 @@ func HTMLTemplateToFile(name, html, filename string, data interface{}) error {
 	f.Close()
 	return nil
 }
-// Returns all files recursively in the dir that have the specified file extension
-// without a dot, and match any one of the supplied expressions.
+// FileMatcher returns all files recursively in the dir that have the specified file extension and match the supplied regular expressions.
+// The file extension should not have a leading dot.
 // The expressions are regular expressions that will match the name of a file, but
 // without the extension.  The extension will be automatically added to each expression.
+// The expressions may be nil, in which case all file patterns will match.
 func FileMatcher(dir, extension string, expressions []string) ([]string, error) {
 	var result []string
 	extensionPattern := "\\." + extension
 	// precompile the expressions
+	if expressions == nil {
+		expressions = []string{".*"}
+	}
 	patterns := make([]*regexp.Regexp, len(expressions))
 	for i, e := range expressions {
 		p, err := regexp.Compile(e + extensionPattern)
@@ -94,7 +98,7 @@ func FileMatcher(dir, extension string, expressions []string) ([]string, error) 
 		patterns[i] = p
 	}
 	// now walk the files and apply the regular expressions
-	err := filepath.Walk(dir,
+	err := filepath.Walk(ResolvePath(dir),
 		func(path string, info os.FileInfo, err error) error {
 			for _, p := range patterns {
 				if p.MatchString(info.Name()) {
@@ -112,4 +116,22 @@ func executionDir() string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir, _ := path.Split(filename)
 	return dir
+}
+// ResolvePath checks the path for a leading tilde and returns the expanded path.
+// The tilde is replaced with the user's home dir path.
+// If no tilde is present, the path is returned unmodified.
+func ResolvePath(path string) string {
+	usr, _ := user.Current()
+	dir := usr.HomeDir
+	var newPath = ""
+	if path == "~" {
+		newPath = dir
+	} else if strings.HasPrefix(path, "~/") {
+		// Use strings.HasPrefix so we don't match paths like
+		// "/something/~/something/"
+		newPath = filepath.Join(dir, path[2:])
+	} else {
+		newPath = path
+	}
+	return newPath
 }
