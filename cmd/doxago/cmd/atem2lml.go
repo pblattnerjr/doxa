@@ -45,8 +45,8 @@ var atem2lmlCmd = &cobra.Command{
 		msg := fmt.Sprintf("converting atem to lml...\n")
 		fmt.Println(msg)
 		Logger.Println(msg)
-		dir := "~/git/ages/atem/ages-alwb-templates/net.ages.liturgical.workbench.templates/a-templates"
-		if err = atem2lml.Process(dir); err != nil {
+		dirIn := "~/git/ages/atem/ages-alwb-templates/net.ages.liturgical.workbench.templates/a-templates"
+		if err = atem2mt.Process(dirIn, Paths.TemplatesPath); err != nil {
 			Logger.Println(err.Error())
 		}
 		Elapsed(start)
