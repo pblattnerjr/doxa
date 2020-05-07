@@ -21,6 +21,7 @@ func (m Mode) Name() string {
 	case M5: return "Mode 5"
 	case M6: return "Mode 6"
 	case M7: return "Mode 7"
+	case M8: return "Mode 8"
 	default: return "unknown"
 	}
 }
