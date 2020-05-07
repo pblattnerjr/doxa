@@ -1,3 +1,4 @@
+//go:generate stringer -type=DayOfSeason
 // Package dsos provides an enum of Liturgical Days of the Season (i.e. the Triodion)
 package dsos
 

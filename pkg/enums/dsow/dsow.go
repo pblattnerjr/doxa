@@ -1,3 +1,4 @@
+//go:generate stringer -type=DOW
 // Package dsows provides an enum of the days of the week
 package dsow
 

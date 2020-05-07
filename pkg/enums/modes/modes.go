@@ -1,3 +1,4 @@
+//go:generate stringer -type=Mode
 // Package modes provides an enum of Liturgical Modes (aka Tones)
 package modes
 

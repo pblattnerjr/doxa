@@ -1,9 +1,10 @@
-// Package doms provides an enum of Days of the Month
-package doms
+//go:generate stringer -type=DayOfMonth
+// Package dsom provides an enum of Days of the Month
+package dsom
 
 type DayOfMonth int
 const (
-	D01 DayOfMonth = iota
+	D01 DayOfMonth = iota + 1
 	D02
 	D03
 	D04
