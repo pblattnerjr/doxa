@@ -1,4 +1,4 @@
-package atem2mt
+package atem2lml
 
 /**
 Temporary functions to convert atem files to lml.
@@ -6,6 +6,8 @@ TODO: remove this file and directory when Fr. S is using Doxa instead of ALWB
 */
 
 import (
+	"fmt"
+	"github.com/google/martian/log"
 	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"os"
 	"strings"
@@ -51,8 +53,21 @@ func Process(dirIn, dirOut string) error {
 	if err != nil {
 		return err
 	}
+	library := "ages/"
+	// Create an index of all sections so ParseTemplate can get the path to any sections inserted.
+	sectionMap, err := Index(dirIn,library)
+	// Process each AGES template and write out the corresponding lml files.
+	// Each section will be written out as a separate file.
 	for _, f := range files {
-		ParseTemplate(f, dirOut+f+".lml")
+		parts := strings.Split(f, "a-templates/")
+		if len(parts) == 2 {
+			id := library + parts[1][0:len(parts[1])-5]
+			if err := ParseTemplate(f, dirOut, id, sectionMap); err != nil {
+				fmt.Println(err)
+			}
+		} else {
+			log.Errorf("Should be using a-templates in path %s\n", f)
+		}
 	}
 	return nil
 }

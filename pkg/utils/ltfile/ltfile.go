@@ -59,14 +59,6 @@ func WriteFile(filename, content string) error {
 	w.Flush()
 	return err
 }
-// NewWriter creates a file writer for the given filename.
-func NewWriter(filename string) (*bufio.Writer, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	return bufio.NewWriter(f), nil
-}
 
 // HTMLTemplateToFile parses the html template and writes it to the filename provided.
 // name: the name of the template

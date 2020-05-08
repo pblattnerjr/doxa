@@ -1,10 +1,14 @@
-package atem2mt
+package atem2lml
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"github.com/liturgiko/doxa/pkg/utils/stack"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -111,36 +115,46 @@ func (c *Cell) addSpans(s Span, libraries []string) {
 		c.Spans = append(c.Spans, span)
 	}
 }
+
 type Align int
+
 const (
 	Left Align = iota
 	Center
 	Right
 )
+
 type HeaderFooter struct {
 	Alignment Align
 }
 type PageType int
+
 const (
 	Even PageType = iota
 	Odd
 )
+
 type Header struct {
 	PageType PageType
 }
+
 // After parsing a file, the data will all be held here
 type MetaTemplate struct {
-	ID     string
-	Imports []string
-	Type   Type
-	Status Status
-	Title  string
-	Day    int
-	Month  int
-	Year   int
-	Rows   []Row
-	Sections []MetaTemplate
+	TemplateDir string
+	ID          string
+	Imports     []string
+	Type        Type
+	Status      Status
+	Title       string
+	Day         int
+	Month       int
+	Year        int
+	Rows        []Row
+	FilePath    string
+	File        *os.File
+	Writer      *bufio.Writer
 }
+
 func (m *MetaTemplate) addImport(i string) {
 	m.Imports = append(m.Imports, i)
 }
@@ -148,38 +162,66 @@ func (m *MetaTemplate) addImport(i string) {
 func (m *MetaTemplate) addRow(r Row) {
 	m.Rows = append(m.Rows, r)
 }
-func (m *MetaTemplate) addSection(s MetaTemplate) {
-	m.Sections = append(m.Sections, s)
+func (m *MetaTemplate) setFilePath() error {
+	var err error
+	m.FilePath = m.TemplateDir + m.ID + ".lml"
+	err = ltfile.CreateDirs(filepath.Dir(m.FilePath))
+	return err
+}
+func (m *MetaTemplate) setWriter() {
+	m.Writer = bufio.NewWriter(m.File)
 }
 
 var mt MetaTemplate
+
 const pathSeparator = string(os.PathSeparator)
 
-func ParseTemplate(fileIn, fileOut string) error {
-	currentState = LineStart
-	// open our input file
-	f, err := os.Open(fileIn)
+func ParseTemplate(fileIn, dirOut, id string, sectionMap map[string]Section) error {
+	// get the name of the file
+	filename := filepath.Base(fileIn)
+	filename = filename[0 : len(filename)-5]
+	// read file in as a string
+	content, err := ioutil.ReadFile(fileIn)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+	text := string(content)
+	// Problem: text/scanner treats hyphen as a word separator.  Change to underscore to get around this.
+	text = strings.ReplaceAll(text, "-", "_")
+
 	// set up stack for templates.  We will create one for each section encountered
 	templates := stack.New()
 	var mt MetaTemplate
+	mt.ID = id
+	mt.TemplateDir = dirOut
 	mt.Type = BOOK // we will override this if encounter a Set_Date
+
+	mt.setFilePath()
+	if mt.File, err = os.Create(mt.FilePath); err != nil {
+		return err
+	}
+	defer mt.File.Close()
+	mt.setWriter()
+
+	// set up stack for keeping track of internal section paths
+	// we need this in order to resolve insert_section that refers to an internal section in this file
+	internalPaths := stack.New()
+	currentInternalPath := filename
 
 	inHead := false
 	importSb := strings.Builder{}
 
 	var s scanner.Scanner
-	s.Init(f)
-	s.Filename = f.Name()
+	s.Init(strings.NewReader(text))
 	s.Whitespace = 1<<':' | 1<<'-' | 1<<'\t' | 1<<'\n' | 1<<' ' // treat these as white space
+	lineSB := strings.Builder{}
+	currentState = LineStart
 
 	for tok := s.Scan(); tok != scanner.EOF; tok = s.Scan() {
 		token := s.TokenText()
-
 		switch token {
-		case "\r": continue
+		case "\r":
+			continue
 		case "Actor":
 			currentState = GotActor
 		case "@":
@@ -242,15 +284,15 @@ func ParseTemplate(fileIn, fileOut string) error {
 			currentState = GotColon
 		case "Dialog":
 			currentState = GotDialog
-		case "End-Actor":
+		case "End_Actor":
 			currentState = GotEndActor
 		case "End_Break":
 			currentState = GotEndBreak
-		case "End-bTag":
+		case "End_bTag":
 			currentState = GotEndBlock
 		case "End_Date":
 			currentState = GotEndDate
-		case "End-Dialog":
+		case "End_Dialog":
 			currentState = GotEndDialog
 		case "End_Page_Header_Even":
 			currentState = GotEndEndPageHeaderEven
@@ -259,44 +301,62 @@ func ParseTemplate(fileIn, fileOut string) error {
 		case "End_Head":
 			currentState = GotEndHead
 			inHead = false
-		case "End-Hymn":
+		case "End_Hymn":
 			currentState = GotEndHymn
-		case "End-Insert":
-			currentState = GotEndInsert
-		case "End-Media":
+		case "End_Insert":
+			sectionId := lineSB.String()
+			resolvedPath := resolveSectionPath(sectionId, currentInternalPath, sectionMap)
+			if len(resolvedPath) > 0 {
+				mt.Writer.WriteString(resolvedPath)
+				mt.Writer.Flush()
+				lineSB.Reset()
+				currentState = Neutral
+			} else {
+				fmt.Printf("Could not resolve section path %s\n",sectionId)
+				currentState = Neutral
+			}
+		case "End_Media":
 			currentState = GotEndMedia
 		case "End_Page_Footer_Even":
 			currentState = GotEndPageFooterEven
 		case "End_Page_Footer_Odd":
 			currentState = GotEndPageFooterOdd
-		case "End-Para":
+		case "End_Para":
 			currentState = GotEndPara
 		case "END-Passthrough-Html":
 			currentState = GotEndPassthroughHTML
-		case "End-Preface":
+		case "End_Preface":
 			currentState = GotEndPreface
-		case "End-Reading":
+		case "End_Reading":
 			currentState = GotEndReading
-		case "End-Rubric":
+		case "End_Rubric":
 			currentState = GotEndRubric
-		case "End-Section":
-			currentState = GotEndSection
-			sMT := mt
+		case "End_Section":
+			if mt.Writer == nil || mt.File == nil {
+				fmt.Println(fileIn)
+				fmt.Println(templates.Peek().(MetaTemplate).ID)
+			}
+			mt.Writer.Flush()
+			mt.File.Close()
 			mt = templates.Pop().(MetaTemplate)
-			mt.addSection(sMT)
+			currentInternalPath = internalPaths.Pop().(string)
+			currentState = Neutral
 		case "End_mcDay":
 			currentState = GotEndSetMcDay
 		case "End_Set_Page_Number":
 			currentState = GotEndSetPageNumber
-		case "End-Sub-Title":
+		case "End_Sub-Title":
 			currentState = GotEndSubTitle
-		case "End-Switch-Version":
+		case "End_Switch-Version":
 			currentState = GotEndSwitchVersion
+		case "End_Template":
+			mt.Writer.Flush()
+			mt.File.Close()
 		case "End_Template_Commemoration":
 			currentState = GotEndTemplateCommemoration
-		case "End-Title || End_Title":
+		case "End_Title || End_Title":
 			currentState = GotEndTitle
-		case "End-Verse":
+		case "End_Verse":
 			currentState = GotEndVerse
 		case "end-when":
 			currentState = GotEndWhen
@@ -309,7 +369,22 @@ func ParseTemplate(fileIn, fileOut string) error {
 		case "right":
 			currentState = GotFooterColumnRight
 		case "commemoration":
-			currentState = GotFooterCommemoration
+			if currentState == GotSection {
+				mt.ID = mt.ID + pathSeparator + token
+				mt.TemplateDir = dirOut
+				currentState = Neutral
+				mt.setFilePath()
+				if mt.File, err = os.Create(mt.FilePath); err != nil {
+					return err
+				}
+				mt.setWriter()
+				mt.Writer.WriteString(fmt.Sprintf("id: %s\n", mt.ID))
+				internalPaths.Push(currentInternalPath)
+				currentInternalPath = currentInternalPath + "." + token
+				currentState = Neutral
+			} else {
+				currentState = GotFooterCommemoration
+			}
 		case "date":
 			currentState = GotFooterDate
 		case "lookup":
@@ -317,9 +392,39 @@ func ParseTemplate(fileIn, fileOut string) error {
 		case "pageNbr":
 			currentState = GotFooterPageNumber
 		case "title":
-			currentState = GotFooterTitle
+			if currentState == GotSection {
+				mt.ID = mt.ID + pathSeparator + token
+				mt.TemplateDir = dirOut
+				currentState = Neutral
+				mt.setFilePath()
+				if mt.File, err = os.Create(mt.FilePath); err != nil {
+					return err
+				}
+				mt.setWriter()
+				mt.Writer.WriteString(fmt.Sprintf("id: %s\n", mt.ID))
+				internalPaths.Push(currentInternalPath)
+				currentInternalPath = currentInternalPath + "." + token
+				currentState = Neutral
+			} else {
+				currentState = GotFooterTitle
+			}
 		case "text":
-			currentState = GotHeaderFooterText
+			if currentState == GotSection {
+				mt.ID = mt.ID + pathSeparator + token
+				mt.TemplateDir = dirOut
+				currentState = Neutral
+				mt.setFilePath()
+				if mt.File, err = os.Create(mt.FilePath); err != nil {
+					return err
+				}
+				mt.setWriter()
+				mt.Writer.WriteString(fmt.Sprintf("id: %s\n", mt.ID))
+				internalPaths.Push(currentInternalPath)
+				currentInternalPath = currentInternalPath + "." + token
+				currentState = Neutral
+			} else {
+				currentState = GotHeaderFooterText
+			}
 		case "Head":
 			currentState = GotHead
 			inHead = true
@@ -365,9 +470,12 @@ func ParseTemplate(fileIn, fileOut string) error {
 			currentState = GotRubric
 		case "Section":
 			currentState = GotSection
+			tmpMt := MetaTemplate{}
+			tmpMt.TemplateDir = dirOut
+			tmpMt.ID = mt.ID // once we get the section name, we will append it to ID
+			tmpMt.Type = BLOCK
 			templates.Push(mt)
-			mt = MetaTemplate{}
-			mt.Type	= BLOCK
+			mt = tmpMt
 		case "Set_Date":
 			currentState = GotSetDate
 			mt.Type = SERVICE
@@ -540,7 +648,7 @@ func ParseTemplate(fileIn, fileOut string) error {
 					{
 						if inHead {
 							var i int
-							if i, err := strconv.Atoi(token); err == nil {
+							if i, err := strconv.Atoi(token); err != nil {
 								fmt.Printf("day=%d, type: %T\n", i, i)
 							}
 							mt.Day = i
@@ -702,13 +810,32 @@ func ParseTemplate(fileIn, fileOut string) error {
 					}
 				case GotImport:
 					{
-					switch token {
-					case ".":
-						if s.Peek() == '*' {
-							mt.addImport(importSb.String())
-							importSb.Reset()
-							currentState = Neutral
-						} else {
+						switch token {
+						case ".":
+							if s.Peek() == '*' {
+								mt.addImport(importSb.String())
+								importSb.Reset()
+								currentState = Neutral
+							} else {
+								parts := strings.Split(token, "_")
+								if len(parts) == 4 {
+									sb := strings.Builder{}
+									sb.WriteString(parts[1])
+									sb.WriteString("_")
+									sb.WriteString(strings.ToLower(parts[2]))
+									sb.WriteString("_")
+									sb.WriteString(parts[3])
+									sb.WriteString(pathSeparator)
+									importSb.WriteString(parts[0])
+									sb.WriteString(importSb.String())
+									mt.addImport(importSb.String())
+									importSb.Reset()
+									currentState = Neutral
+								} else {
+									importSb.WriteString(token)
+								}
+							}
+						default:
 							parts := strings.Split(token, "_")
 							if len(parts) == 4 {
 								sb := strings.Builder{}
@@ -720,33 +847,14 @@ func ParseTemplate(fileIn, fileOut string) error {
 								sb.WriteString(pathSeparator)
 								importSb.WriteString(parts[0])
 								sb.WriteString(importSb.String())
-								mt.addImport(importSb.String())
+								sb.WriteString(pathSeparator)
+								mt.addImport(sb.String())
 								importSb.Reset()
 								currentState = Neutral
 							} else {
 								importSb.WriteString(token)
 							}
 						}
-					default:
-						parts := strings.Split(token, "_")
-						if len(parts) == 4 {
-							sb := strings.Builder{}
-							sb.WriteString(parts[1])
-							sb.WriteString("_")
-							sb.WriteString(strings.ToLower(parts[2]))
-							sb.WriteString("_")
-							sb.WriteString(parts[3])
-							sb.WriteString(pathSeparator)
-							importSb.WriteString(parts[0])
-							sb.WriteString(importSb.String())
-							sb.WriteString(pathSeparator)
-							mt.addImport(sb.String())
-							importSb.Reset()
-							currentState = Neutral
-						} else {
-							importSb.WriteString(token)
-						}
-					}
 					}
 				case GotInsertPreface:
 					{
@@ -754,7 +862,9 @@ func ParseTemplate(fileIn, fileOut string) error {
 					}
 				case GotInsertSection:
 					{
-						fmt.Printf("Unhandled: %s\n", GotInsertSection.stateName())
+						// TODO: get path to section being inserted
+						// TODO: handle tab indentation
+						lineSB.WriteString(token)
 					}
 				case GotInsertTemplate:
 					{
@@ -771,7 +881,7 @@ func ParseTemplate(fileIn, fileOut string) error {
 				case GotMonth:
 					if inHead {
 						var i int
-						if i, err := strconv.Atoi(token); err == nil {
+						if i, err := strconv.Atoi(token); err != nil {
 							fmt.Printf("month=%d, type: %T\n", i, i)
 						}
 						mt.Month = i
@@ -828,7 +938,18 @@ func ParseTemplate(fileIn, fileOut string) error {
 					}
 				case GotSection:
 					{
-						fmt.Printf("Unhandled: %s\n", GotSection.stateName())
+						mt.ID = mt.ID + pathSeparator + token
+						mt.TemplateDir = dirOut
+						currentState = Neutral
+						mt.setFilePath()
+						if mt.File, err = os.Create(mt.FilePath); err != nil {
+							return err
+						}
+						mt.setWriter()
+						mt.Writer.WriteString(fmt.Sprintf("id: %s\n", mt.ID))
+						internalPaths.Push(currentInternalPath)
+						currentInternalPath = currentInternalPath + "." + token
+						currentState = Neutral
 					}
 				case GotSetDate:
 					{
@@ -864,8 +985,9 @@ func ParseTemplate(fileIn, fileOut string) error {
 					}
 				case GotTemplateName:
 					{
-					mt.Title = token
-					currentState = Neutral
+						mt.Title = token
+						mt.Writer.WriteString(fmt.Sprintf("id: \"%s\"\n", mt.ID))
+						currentState = Neutral
 					}
 				case GotTemplateStatusDraft:
 					{
@@ -934,7 +1056,7 @@ func ParseTemplate(fileIn, fileOut string) error {
 				case GotYear:
 					if inHead {
 						var i int
-						if i, err := strconv.Atoi(token); err == nil {
+						if i, err := strconv.Atoi(token); err != nil {
 							fmt.Printf("year=%d, type: %T\n", i, i)
 						}
 						mt.Year = i
@@ -983,32 +1105,33 @@ const (
 	GotColon                                 // :
 	GotDay                                   // day
 	GotDialog                                // Dialog
-	GotEndActor                              // End-Actor
+	GotEnd                                   // End
+	GotEndActor                              // End_Actor
 	GotEndBreak                              // End_Break
-	GotEndBlock                              // End-bTag
+	GotEndBlock                              // End_bTag
 	GotEndDate                               // End_Date
-	GotEndDialog                             // End-Dialog
+	GotEndDialog                             // End_Dialog
 	GotEndEndPageHeaderEven                  // End_Page_Header_Even
 	GotEndEndPageHeaderOdd                   // End_Page_Header_Odd
-	GotEndHead                               // End-Head
-	GotEndHymn                               // End-Hymn
-	GotEndInsert                             // End-Insert
-	GotEndMedia                              // End-Media
+	GotEndHead                               // End_Head
+	GotEndHymn                               // End_Hymn
+	GotEndInsert                             // End_Insert
+	GotEndMedia                              // End_Media
 	GotEndPageFooterEven                     // End_Page_Footer_Even
 	GotEndPageFooterOdd                      // End_Page_Footer_Odd
-	GotEndPara                               // End-Para
+	GotEndPara                               // End_Para
 	GotEndPassthroughHTML                    // END-Passthrough-Html
-	GotEndPreface                            // End-Preface
-	GotEndReading                            // End-Reading
-	GotEndRubric                             // End-Rubric
-	GotEndSection                            // End-Section
+	GotEndPreface                            // End_Preface
+	GotEndReading                            // End_Reading
+	GotEndRubric                             // End_Rubric
+	GotEndSection                            // End_Section
 	GotEndSetMcDay                           // End_mcDay
 	GotEndSetPageNumber                      // End_Set_Page_Number
-	GotEndSubTitle                           // End-Sub-Title
-	GotEndSwitchVersion                      // End-Switch-Version
+	GotEndSubTitle                           // End_Sub-Title
+	GotEndSwitchVersion                      // End_Switch-Version
 	GotEndTemplateCommemoration              // End_Template_Commemoration
-	GotEndTitle                              // End-Title || End_Title
-	GotEndVerse                              // End-Verse
+	GotEndTitle                              // End_Title || End_Title
+	GotEndVerse                              // End_Verse
 	GotEndWhen                               // end-when
 	GotEqualSign                             // =
 	GotFooterColumnCenter                    // center
@@ -1020,7 +1143,7 @@ const (
 	GotFooterPageNumber                      // @pageNbr
 	GotFooterTitle                           // @title
 	GotHeaderFooterText                      // @text
-	GotHead                                	 // Head
+	GotHead                                  // Head
 	GotHymn                                  // Hymn
 	GotImport                                // import
 	GotInsertPreface                         // Insert_preface - unused
@@ -1455,22 +1578,26 @@ func getValue(id string) string {
 		return "unknown id " + id
 	}
 }
-
-/**
-My idea:
-push tokens onto stack with position info.
-if you are in a tag line, when you hit eol,
-  pop the stack until you get the tag, saving the topic-keys
-  use the tag to get the formatting info and use it to create
-     the output.
-Note the a ...string is actually a []string. So, when
-  you call the generic function have the topic-keys in a string slice
-
-Errors
-- missing topic or key
-- topic-key does not exist in gr_gr_cog
-- unknown tag
-- missing opening brace
-- missing closing brace for opening brace
-- tag must be followed by at least one topic-key
-*/
+func resolveSectionPath(pathToResolve string, currentInternalPath string, sectionMap map[string]Section) string {
+	var resolvedPath string
+	if section, ok := sectionMap[pathToResolve]; ok {
+		sectionId := section.Paths[0]
+		resolvedPath = fmt.Sprintf("insert %s/%s\n",section.Paths[0],strings.ReplaceAll(sectionId,".","/"))
+	} else {
+		parts := strings.Split(currentInternalPath,".")
+		l := len(parts)
+		for i, _ := range parts {
+			sectionId := strings.Join(parts[i:l-1],".") + "." + pathToResolve
+			if section, ok := sectionMap[sectionId]; ok {
+				sectionId := section.Paths[0]
+				resolvedPath = fmt.Sprintf("insert %s/%s\n", section.Paths[0], strings.ReplaceAll(sectionId, ".", "/"))
+				break
+			}
+			//if _, ok := internalMap[parts[0]][sectionId]; ok {
+			//	resolvedPath = fmt.Sprintf("insert %s\n", strings.ReplaceAll(sectionId, ".", "/"))
+			//	break
+			//}
+		}
+	}
+	return resolvedPath
+}

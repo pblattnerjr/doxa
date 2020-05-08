@@ -6,6 +6,7 @@ require (
 	github.com/GeertJohan/go.rice v1.0.0
 	github.com/c-bata/go-prompt v0.2.3
 	github.com/google/go-github v17.0.0+incompatible
+	github.com/google/martian v2.1.0+incompatible
 	github.com/gorilla/mux v1.6.2
 	github.com/jinzhu/gorm v1.9.10
 	github.com/jmoiron/sqlx v1.2.0
