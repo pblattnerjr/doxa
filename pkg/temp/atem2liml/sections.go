@@ -10,18 +10,11 @@ import (
 	"text/scanner"
 )
 
-type Section struct {
-	Paths []string
-}
-
-func (s *Section) addPath(path string) {
-	s.Paths = append(s.Paths, path)
-}
-func Index(dirIn, library string) (map[string]Section, error) {
+func Index(dirIn, library string) (map[string]string, error) {
 	paths := stack.New()
 	internalPaths := stack.New()
 
-	var Map = map[string]Section{}
+	var Map = make(map[string]string)
 
 	files, err := ltfile.FileMatcher(dirIn, "atem", nil)
 	if err != nil {
@@ -62,18 +55,12 @@ func Index(dirIn, library string) (map[string]Section, error) {
 				default:
 					switch currentState {
 					case GotSection:
-						var section Section
-						ok := false
-						if section, ok = Map[token]; ! ok {
-							section = Section{}
-						}
-						section.Paths = append(section.Paths, currentDoxaPath)
 						internalPaths.Push(currentAGESPath)
 						currentAGESPath = currentAGESPath + "." + token
-						Map[currentAGESPath] = section
-						currentState = Neutral
 						paths.Push(currentDoxaPath)
 						currentDoxaPath = currentDoxaPath + pathSeparator + token
+						Map[currentAGESPath] = currentDoxaPath
+						currentState = Neutral
 					}
 				}
 			}

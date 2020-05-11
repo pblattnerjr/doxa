@@ -28,8 +28,8 @@ import (
 
 var cloneCmd = &cobra.Command{
 	Use:   "clone",
-	Short: "clones the github repos listed in the config file",
-	Long: `clones the github repositories listed in the config file
+	Short: "clone the github repos listed in the config file",
+	Long: `clone the github repositories listed in the config file
 that are identified by the key github.repos, to the ares.dir (directory)
 value setRecord in the config file. Be aware that if the directory exists,
 it will first be deleted.

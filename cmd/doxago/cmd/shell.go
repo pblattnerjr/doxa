@@ -23,8 +23,8 @@ import (
 // the Shell command provides a user-friendly means search liturgical texts and create of update values
 var shellCmd = &cobra.Command{
 	Use:   "shell",
-	Short: "provides a shell for accessing the liturgical database",
-	Long:  `provides a shell for accessing the liturgical database`,
+	Short: "provide a shell for accessing the liturgical database",
+	Long:  `provide a shell for accessing the liturgical database`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// open the database
 		db, err := SQL.Open("sqlite3", Paths.DbPath)

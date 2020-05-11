@@ -176,7 +176,7 @@ var mt MetaTemplate
 
 const pathSeparator = string(os.PathSeparator)
 
-func ParseTemplate(fileIn, dirOut, id string, sectionMap map[string]Section) error {
+func ParseTemplate(fileIn, dirOut, id string, sectionMap map[string]string) error {
 	// get the name of the file
 	filename := filepath.Base(fileIn)
 	filename = filename[0 : len(filename)-5]
@@ -307,7 +307,7 @@ func ParseTemplate(fileIn, dirOut, id string, sectionMap map[string]Section) err
 			sectionId := lineSB.String()
 			resolvedPath := resolveSectionPath(sectionId, currentInternalPath, sectionMap)
 			if len(resolvedPath) > 0 {
-				mt.Writer.WriteString(resolvedPath)
+				mt.Writer.WriteString(fmt.Sprintf("insert %s\n", resolvedPath))
 				mt.Writer.Flush()
 				lineSB.Reset()
 				currentState = Neutral
@@ -1578,26 +1578,19 @@ func getValue(id string) string {
 		return "unknown id " + id
 	}
 }
-func resolveSectionPath(pathToResolve string, currentInternalPath string, sectionMap map[string]Section) string {
-	var resolvedPath string
-	if section, ok := sectionMap[pathToResolve]; ok {
-		sectionId := section.Paths[0]
-		resolvedPath = fmt.Sprintf("insert %s/%s\n",section.Paths[0],strings.ReplaceAll(sectionId,".","/"))
+func resolveSectionPath(pathToResolve string, currentInternalPath string, sectionMap map[string]string) string {
+	if doxaPath, ok := sectionMap[pathToResolve]; ok {
+		return doxaPath
 	} else {
 		parts := strings.Split(currentInternalPath,".")
 		l := len(parts)
 		for i, _ := range parts {
-			sectionId := strings.Join(parts[i:l-1],".") + "." + pathToResolve
-			if section, ok := sectionMap[sectionId]; ok {
-				sectionId := section.Paths[0]
-				resolvedPath = fmt.Sprintf("insert %s/%s\n", section.Paths[0], strings.ReplaceAll(sectionId, ".", "/"))
+			sectionId := strings.Join(parts[0:l-i],".") + "." + pathToResolve
+			if doxaPath, ok := sectionMap[sectionId]; ok {
+				return doxaPath
 				break
 			}
-			//if _, ok := internalMap[parts[0]][sectionId]; ok {
-			//	resolvedPath = fmt.Sprintf("insert %s\n", strings.ReplaceAll(sectionId, ".", "/"))
-			//	break
-			//}
 		}
 	}
-	return resolvedPath
+	return ""
 }

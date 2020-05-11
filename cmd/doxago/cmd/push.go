@@ -28,8 +28,8 @@ import (
 
 var pushCmd = &cobra.Command{
 	Use:   "push",
-	Short: "pushes the github repos listed in the config file",
-	Long: `pushes the github repositories listed in the config file
+	Short: "push the github repos listed in the config file",
+	Long: `push the github repositories listed in the config file
 that are identified by the key github.repos.  It will first add *, 
 then commit, using the date and time as the commit message.
 `,
