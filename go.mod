@@ -3,6 +3,7 @@ module github.com/liturgiko/doxa
 go 1.12
 
 require (
+	github.com/GeertJohan/go.rice v1.0.0
 	github.com/c-bata/go-prompt v0.2.3
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/gorilla/mux v1.6.2

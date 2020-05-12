@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Tags on Doxa</title>
+    <link>../tags/</link>
+    <description>Recent content in Tags on Doxa</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 12 May 2018 13:49:50 +1000</lastBuildDate>
+    
+	<atom:link href="../tags/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>design</title>
+      <link>../tags/design/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../tags/design/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>doc</title>
+      <link>../tags/doc/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../tags/doc/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>edit</title>
+      <link>../tags/edit/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../tags/edit/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>generate</title>
+      <link>../tags/generate/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../tags/generate/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>initializer</title>
+      <link>../tags/initializer/</link>
+      <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
+      
+      <guid>../tags/initializer/</guid>
+      <description></description>
+    </item>
+    
+  </channel>
+</rss>

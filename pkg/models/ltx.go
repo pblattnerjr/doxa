@@ -197,7 +197,6 @@ func LineParts2Ltx (out chan<- Ltx, in <-chan ares.LineParts) {
 
 }
 
-
 // SetValue sets the value, and the Normalized With Punctuation (NWP) and Normalized without Punctuation (NWP) properties.
 func (l *Ltx) SetValue(value string) {
 	l.Value = value

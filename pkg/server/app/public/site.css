@@ -1,0 +1,51 @@
+.header { /** navbar on any page **/
+  background-color: black !important;
+  font-style: italic;
+  text-shadow: 2px 2px 4px #000000;
+}
+.home-header { /** navbar on landing page **/
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+}
+.page-header { /** navbar on sub-pages **/
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+}
+.banner {
+  /** padding-top controls how much top of banner.jpg is visible **/
+  /** It is expressed in vh, which is viewport height. **/
+  /** You may change the value but not the units. **/
+  padding-top: 30vh !important; 
+  text-shadow: 2px 2px 4px #000000; /** for banner sub-title **/
+  color: goldenrod !important;
+  font-weight: 900;
+}
+.banner-title { /** for banner main title **/
+  font-weight: 900;
+  text-shadow: 2px 2px 4px #000000;
+  color: goldenrod !important;
+}
+.logo-row {
+  margin: 0;
+  position: absolute;
+  top: 0.5vh;
+  left: -3vh;
+  /* transform: translate(-50%, -50%); */
+}
+.site-logo {
+  position: relative;
+  top: 0px !important;
+}
+.site-title {
+  position: relative;
+  left: -30px;
+}
+.dropotron {
+  color: black !important;
+}
+a {
+  font-weight: bold;
+}
+.features-row a {
+  font-weight: bold;
+}
