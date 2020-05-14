@@ -3,6 +3,7 @@ package ares
 import (
 	"flag"
 	"fmt"
+	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -284,8 +285,7 @@ func TestCleanAres(t *testing.T) {
 
 	var walkErr error
 
-	fi, _ := os.Stat(in)
-	if !fi.IsDir() && strings.HasSuffix(in, ".ares") {
+	if ltfile.FileExists(in) && strings.HasSuffix(in, ".ares") {
 		walkErr = CleanAres(in, out, *suppressComments)  // processing a file, nor a directory
 		if walkErr != nil {
 			allErrors = append(allErrors,walkErr)
@@ -302,7 +302,7 @@ func TestCleanAres(t *testing.T) {
 				return err
 			} else {
 				//fmt.Printf("process directory: %q\n", path)
-				if !info.IsDir() && !strings.Contains(path, ".git") {
+				if ltfile.FileExists(path) && !strings.Contains(path, ".git") {
 					fname := info.Name()
 					if strings.HasSuffix(path, ".ares") {
 						fmt.Printf("clean file: %q on %q\n",fname, path)

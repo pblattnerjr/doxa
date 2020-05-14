@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
 	"log"
 	"os"
@@ -246,7 +247,7 @@ func CleanAres(in, out string, noComment bool) error {
 	scanner := bufio.NewScanner(fileIn)
 
 	theDir := filepath.Dir(out)
-	err = os.MkdirAll(theDir,os.ModeDir)
+	err = ltfile.CreateDirs(theDir)
 	if err != nil {
 		log.Fatal(err)
 	}
