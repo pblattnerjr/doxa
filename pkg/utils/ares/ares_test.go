@@ -306,11 +306,11 @@ func TestCleanAres(t *testing.T) {
 					fname := info.Name()
 					if strings.HasSuffix(path, ".ares") {
 						fmt.Printf("clean file: %q on %q\n",fname, path)
-						walkErr = CleanAres(path, out + path[len(in):], *suppressComments)
+						walkErr = CleanAres(path, out + "\\" +  path[len(in):], *suppressComments)
 						if walkErr != nil {
 							allErrors = append(allErrors,walkErr)
 						} else {
-							aresErrors = GetAresErrors(out + path[len(in):])
+							aresErrors = GetAresErrors(out + "\\" + path[len(in):])
 							for _, err := range *aresErrors {
 								allErrors = append(allErrors, err)
 							}
