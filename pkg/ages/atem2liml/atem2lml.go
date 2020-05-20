@@ -54,15 +54,15 @@ func Process(dirIn, dirOut string) error {
 		return err
 	}
 	library := "ages/"
-	// Create an index of all sections so ParseTemplate can get the path to any sections inserted.
-	sectionMap, err := Index(dirIn,library)
+	// Create an index of all templates and sections so ParseTemplate can get the path to any sections inserted.
+	tTree, sTree, err := Index(dirIn,library)
 	// Process each AGES template and write out the corresponding lml files.
 	// Each section will be written out as a separate file.
 	for _, f := range files {
 		parts := strings.Split(f, "a-templates/")
 		if len(parts) == 2 {
 			id := library + parts[1][0:len(parts[1])-5]
-			if err := ParseTemplate(f, dirOut, id, sectionMap); err != nil {
+			if err := ParseTemplate(f, dirOut, id, tTree, sTree); err != nil {
 				fmt.Println(err)
 			}
 		} else {

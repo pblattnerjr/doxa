@@ -112,8 +112,6 @@ func initConfig() {
 		}
 	}
 
-	DOXAPORT = viper.GetString("port.http.doxa")
-
 	viper.AutomaticEnv() // read in environment variables that match
 
 	if err := viper.ReadInConfig(); err != nil {

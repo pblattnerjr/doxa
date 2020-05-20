@@ -71,6 +71,11 @@
                     <ul>
                       
                           
+                            <li><a href="../designkeyring">Key Rings</a></li>
+                          
+                          </li>
+                      
+                          
                             <li><a href="../designstylesheets">Stylesheets</a></li>
                           
                           </li>
@@ -307,20 +312,88 @@ css: "/ages/css/ages.css" // editor reads it so it knows what styles are valid
   // new nid keyword means "no id" and will insert text verbatim
   p.dialog sid "prayers/pet02" .rubric nid "(" sid "rubrical/InALowVoice" nid ")"
 }
+// css span names stay on until next css span name or end of line.
+// But, if you need to embed a span, you can use parentheses.
+// You can optionally put spaces around the parentheses.
+{
+    // Ex 1: .rubric continues until end of line, no parentheses needed.
+    //       "a/b", "c/d", and "e/f" are all within the rubric span.
+  .verse sid "x/y" .rubric sid "a/b" sid "c/d" sid "e/f"  
+    // Ex 2: .rubric continues until .bk and it (.bk) to the end of line
+    //       "a/b" is in rubric span, "c/d", and "e/f" are in black span.
+  .verse sid "x/y" .rubric sid "a/b" .bk sid "c/d" sid "e/f"  
+    // Ex 3:  .rubric continues until end of line, 
+    // but has an embedded black span, so parentheses needed
+    // "a/b" and "e/f" will be formatted as a rubric.
+    // "c/d" will override the color property of the .rubric
+    // and be black.
+  .verse sid "x/y" .rubric (sid "a/b" .bk (sid "c/d") sid "e/f")  
+    //  Ex 4: for better readability, put spaces around parentheses.
+  .verse sid "x/y" .rubric ( sid "a/b" .bk ( sid "c/d" ) sid "e/f" )  
+}
 /**
 rid works on da.*, eo.*, me.*, oc.*, pe.*, sy.*, tr.*, ty.*
 see the Keyring in the AGES system library
+The only allowable us of an if statement is
+   if exists rid ....
 **/
-when_exists rid "oc.*/ocMO.Ode43.text" use:  {
+if exists rid "oc.*/ocMO.Ode43.text" {
     p.verse sid "prayers/verse_Trinity.text"
-    p.hymn rid "oc.*/ocMO.Ode42.text" ver // ver inserts the version name
+    p.hymn rid "oc.*/ocMO.Ode42.text" @Ver // @Ver inserts the version name
   	p.title sid "prayers/Doxa"
-  	p.hymn rid "oc.*/ocMO.Ode43.text" ver
-  otherwise use:
+  	p.hymn rid "oc.*/ocMO.Ode43.text" @Ver
+} else {
   	p.verse sid "prayers/verse_Trinity.text"
-  	p.hymn rid "oc.*/ocMO.Ode41.text" ver
+  	p.hymn rid "oc.*/ocMO.Ode41.text" @Ver
   	p.title sid "prayers/Doxa"
-  	p.hymn rid "oc.*/ocMO.Ode42.text" ver
+  	p.hymn rid "oc.*/ocMO.Ode42.text" @Ver
+}
+/** switch cases based on a day can be a single day:
+     case 50:
+**/ Or, a range as shown below:
+switch MovableCycleDay {
+	case 79 thru 84 :
+		insert "Selector_FestalApolytikion/af/thomas"
+	case 96 thru 102 :
+		insert "Selector_FestalApolytikion/af/midpentecost"
+	case 111 thru 118 :
+		insert "Selector_FestalApolytikion/af/ascension"
+	case 122 thru 126 :
+		insert "Selector_FestalApolytikion/af/pentecost"
+	default :
+		switch Date {
+			case Jan 7 thru 14:
+				insert "ages/blocks/selectors/Selector_FestalApolytikion/af/Epiphany"
+			case Feb 3 thru 9: 
+				insert "ages/blocks/selectors/Selector_FestalApolytikion/af/Meeting"
+			case Aug 7 thru 13: 
+				insert "ages/blocks/selectors/Selector_FestalApolytikion/af/Transfiguration"
+			case Aug 16 thru 23: 
+				insert "ages/blocks/selectors/Selector_FestalApolytikion/af/Dormition"
+			case Sep 9 thru 12: 
+				insert "ages/blocks/selectors/Selector_FestalApolytikion/af/Theotokos_Birth"
+			case Sep 15 thru 21: 
+				insert "ages/blocks/selectors/Selector_FestalApolytikion/af/Cross"
+			case Nov 22 thru 25: 
+				insert "ages/blocks/selectors/Selector_FestalApolytikion/af/Entry"
+			case Dec 26 thru 31: 
+				insert "ages/blocks/selectors/Selector_FestalApolytikion/af/Christmas"
+		}
+}
+switch NameOfDay {
+	case Monday, Tuesday, Wednesday, Friday:
+		insert "ages/blocks/AP/da__/dayofweek1_"
+		insert "ages/blocks/AP/gloryboth__.da_theotokion"
+	case Thursday:
+		insert "ages/blocks/AP/da__/dayofweek1_"
+		insert "ages/blocks/TI/g/another"
+		insert "ages/blocks/AP.ganame/Dec06__/nicholas_/hymn"
+		insert "ages/blocks/AP/both__/da_theotokion"
+	case Saturday:
+		insert "ages/blocks/AP/da__/dayofweek1_"
+		insert "ages/blocks/TI/g/another" 
+		insert "ages/blocks/AP/da__/dayofweek2_/hymn" 
+		insert "ages/blocks/AP/both__.da_theotokion"
 }
 		</textarea>
 		<link rel="stylesheet" type="text/css" href="../css/codemirror.css">
