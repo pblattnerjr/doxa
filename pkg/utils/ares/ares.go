@@ -122,6 +122,18 @@ func ParseAresFileName(f string) (FilenameParts, error) {
 	return result, nil
 }
 
+// Returns the library name (Language_Country_Realm) from an ares filename
+func LibraryName(f string) (string, error) {
+	var result string
+	fparts, err := ParseAresFileName(f)
+	if err != nil {
+		return result, err
+	} else {
+		result = fparts.Language + "_" + fparts.Country + "_" + fparts.Realm
+		return result, nil
+	}
+}
+
 // Converts value from this form: properties_en_UK_lash.media.key
 // To this form: en_us_lash~properties~media.key
 func ToRedirectId(value string) (string, error) {
@@ -157,6 +169,24 @@ const emptyString = "\"\""
 var lineCnt int
 var fileIn *os.File
 var fileOut *os.File
+
+var InBase string	// base path of all input files
+var OutBase string	// base path of all output files
+
+
+// The following create global lists of definitions and references to other keys found in an
+// entire run of any program cleaning a tree of ares files.
+
+type aresReference struct {
+	file string
+	line int
+}
+type libraryReferences map[string] []aresReference  // count the number of times this reference is found
+var  AllReferences  = make(map[string] libraryReferences) // all references for all libraries
+
+type aresReferences map[string] string
+var  AllDefinitions  = make(map[string] aresReferences) // all references for all libraries
+
 
 func saveDefinition(k string, v string, c string, noComment bool,
 	definitions map[string]string, commentsForKey map[string]string) bool {
@@ -225,6 +255,7 @@ func CleanAres(in, out string, noComment bool) error {
 	var (
 		err            error
 		parts          []string
+		library        string
 		line           string
 		nextLine       string
 		aresKey        string
@@ -258,6 +289,11 @@ func CleanAres(in, out string, noComment bool) error {
 	defer fileOut.Close()
 	w := bufio.NewWriter(fileOut)
 
+	library, err = LibraryName(in)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var blockComment bool
 
 	//
@@ -268,7 +304,6 @@ func CleanAres(in, out string, noComment bool) error {
 		line = strings.TrimSpace(scanner.Text())
 		line = strings.TrimSpace(line)
 		lineCnt++
-
 
 		// Append all blank or comment lines to the 'comments' variable
 		// to be associated with the next key
@@ -287,26 +322,26 @@ func CleanAres(in, out string, noComment bool) error {
 			continue
 		}
 
-		if !strings.Contains(line,"=") { // no "=" in the line, just treat it like a comment
+		if !strings.Contains(line, "=") { // no "=" in the line, just treat it like a comment
 			comments = comments + line + "\n"
 			continue
 		} else { // this is an assignment of some sort
 			parts = strings.Split(line, "=")
 			aresKey = strings.TrimSpace(parts[0])
 			aresDef = strings.TrimSpace(parts[1])
-			aresDef = strings.ReplaceAll(aresDef,"\\\"","%%")  // guard escaped quotes
-			if len(parts) > 2 { // a few lines have an '=' in a trailing comment
+			aresDef = strings.ReplaceAll(aresDef, "\\\"", "%%") // guard escaped quotes
+			if len(parts) > 2 {                                 // a few lines have an '=' in a trailing comment
 				aresDef = aresDef + " = " + strings.TrimSpace(parts[2])
 			}
 
 			if strings.HasPrefix(aresDef, "\"") { // right side starts with quote
 				// Special multi-line case with embedded newline
 				// if aresDef has no close quote
-				if aresDef == "\"" ||  !strings.HasSuffix(aresDef, "\"") && strings.Count(aresDef,"\"") == 1 {
+				if aresDef == "\"" || !strings.HasSuffix(aresDef, "\"") && strings.Count(aresDef, "\"") == 1 {
 					for {
 						scanner.Scan()
 						nextLine = strings.TrimSpace(scanner.Text())
-						nextLine = strings.ReplaceAll(nextLine,"\\\"","%%") // guard escaped quotes
+						nextLine = strings.ReplaceAll(nextLine, "\\\"", "%%") // guard escaped quotes
 						lineCnt++
 						if aresDef != "\"" && nextLine != "\"" {
 							aresDef = aresDef + " " + nextLine
@@ -319,13 +354,27 @@ func CleanAres(in, out string, noComment bool) error {
 						}
 					}
 				}
+				if _,ok := AllDefinitions[library][aresKey]; !ok { // create a new map of definitions
+					AllDefinitions[library] = make(map[string] string)
+				}
+				AllDefinitions[library][aresKey] = aresDef
+
+			} else { // without quotes, this is a reference, not a definition.  Store it for checking later
+				if _,ok := AllReferences[library][aresKey]; !ok { // of there is no entry for the key reference
+					refs := make(libraryReferences)
+					AllReferences[library] = refs
+				}
+				var aReference aresReference
+				aReference.file = in[len(InBase)+1:]
+				aReference.line = lineCnt
+				AllReferences[library][aresKey] = append(AllReferences[library][aresKey],aReference)
 			}
 
 			if !alreadyDefined(aresKey, definitions) { // add only the first time the key is encountered
 				keys = append(keys, aresKey)
 			}
 
-			aresDef = strings.ReplaceAll(aresDef,"%%","\\\"") // restore escaped quotes
+			aresDef = strings.ReplaceAll(aresDef, "%%", "\\\"") // restore escaped quotes
 
 			saveDefinition(aresKey, aresDef, comments, noComment, definitions, commentsForKey)
 			comments = ""
@@ -350,13 +399,12 @@ func CleanAres(in, out string, noComment bool) error {
 	return err
 }
 
-
 // GetAresErrors returns an array of errors found
-// in the specified ares file.  The errors will
+// in the specified ares output file.  The errors will
 // be one of the error types defined in this package.
-func GetAresErrors(in string) *[]error {
+func GetAresErrors(out string) *[]error {
 	var result []error
-	file, err := os.Open(in)
+	file, err := os.Open(out)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -364,8 +412,10 @@ func GetAresErrors(in string) *[]error {
 	scanner := bufio.NewScanner(file)
 	var fileNameParts FilenameParts
 	fileNameParts, err = ParseAresFileName(file.Name())
+	fname := file.Name()
+	fname = fname[len(OutBase)+2:]
 	if err != nil {
-		result = append(result, errors.New(fmt.Sprintf("%s: %v", file.Name(), err)))
+		result = append(result, errors.New(fmt.Sprintf("%s: %v", fname, err)))
 	}
 	var lineCnt int
 	inCommentBlock := false
@@ -388,12 +438,12 @@ func GetAresErrors(in string) *[]error {
 			lineParts, err := ParseLine(fileNameParts, line)
 			lineParts.LineNbr = lineCnt
 			if len(lineParts.Key) > 0 && seenKey[lineParts.Key] {
-				result = append(result, errors.New(fmt.Sprintf("%s %d: duplicate key %s", file.Name(), lineCnt, lineParts.Key)))
+				result = append(result, errors.New(fmt.Sprintf("%s Line: %d: duplicate key %s", fname, lineCnt, lineParts.Key)))
 			} else {
 				seenKey[lineParts.Key] = true
 			}
 			if err != nil {
-				result = append(result, errors.New(fmt.Sprintf("%s %d: %s", file.Name(), lineCnt, err)))
+				result = append(result, errors.New(fmt.Sprintf("%s line: %d: %s", fname, lineCnt, err)))
 			}
 		}
 	}
