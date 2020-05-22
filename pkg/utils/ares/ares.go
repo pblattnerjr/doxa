@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 )
+var Logger *log.Logger
 
 var (
 	ErrFileMissingAres      = errors.New("ares: file missing .ares extension")
@@ -187,7 +188,6 @@ var  AllReferences  = make(map[string] libraryReferences) // all references for 
 type aresReferences map[string] string
 var  AllDefinitions  = make(map[string] aresReferences) // all references for all libraries
 
-
 func saveDefinition(k string, v string, c string, noComment bool,
 	definitions map[string]string, commentsForKey map[string]string) bool {
 
@@ -201,26 +201,34 @@ func saveDefinition(k string, v string, c string, noComment bool,
 		// Case 1: no previous definition, value is "" - save value
 		// Case 2: no previous definition, value is NOT "" - save value
 		definitions[k] = v // new value
-		if !noComment {
+		if noComment && Logger != nil {
+			Logger.Println(fmt.Sprintf("%s %s", k, c))
+		} else {
 			commentsForKey[k] += c
 		}
 	} else if oldValue == emptyString && v == emptyString {
 		// Case 3: saved definition and current definition are both "" - discard this definition
 		msg = fmt.Sprintf("// line %d duplicate empty definition for key %s - discarded\n", lineCnt, k)
-		if !noComment {
+		if noComment && Logger != nil  {
+			Logger.Println(fmt.Sprintf("%s %s", k, c + msg))
+		} else {
 			commentsForKey[k] += c + msg
 		}
 	} else if oldValue == emptyString && v != emptyString {
 		// Case 4: replacing empty definition with real definition
 		definitions[k] = v // substitute real value for placeholder
 		msg = fmt.Sprintf("// line %d empty definition for key %s replaced with %s\n", lineCnt, k, v)
-		if !noComment {
+		if noComment  && Logger != nil {
+			Logger.Println(fmt.Sprintf("%s %s", k, c + msg))
+		} else {
 			commentsForKey[k] += c + msg
 		}
 	} else if oldValue != emptyString && v == emptyString {
 		// Case 5: old definitions is non-empty but new definition is "" - discard new definition
 		msg = fmt.Sprintf("// line %d Invalid replacement of value %s for key %s with empty string\n", lineCnt, oldValue, k)
-		if !noComment {
+		if noComment  && Logger != nil {
+			Logger.Println(fmt.Sprintf("%s %s", k, c + msg))
+		} else {
 			commentsForKey[k] += c + msg
 		}
 	} else if oldValue != emptyString && v != emptyString {
@@ -232,7 +240,9 @@ func saveDefinition(k string, v string, c string, noComment bool,
 			msg = fmt.Sprintf("// line %d Substituting value %s for key %s old value was %s\n", lineCnt, v, k, oldValue)
 			definitions[k] = v // updating value for key
 		}
-		if !noComment {
+		if noComment && Logger != nil  {
+			Logger.Println(fmt.Sprintf("%s %s", k, c + msg))
+		} else {
 			commentsForKey[k] += c + msg
 		}
 	}
@@ -249,6 +259,23 @@ func hasComments(k string, commentsForKey map[string]string) bool {
 	var found bool
 	_, found = commentsForKey[k]
 	return found
+}
+func CleanAresFiles(dirIn, dirOut string, noComment bool, logger *log.Logger) error {
+	Logger = logger
+	dirIn = ltfile.ResolvePath(dirIn)
+	dirOut = ltfile.ResolvePath(dirOut)
+	files, err := ltfile.FileMatcher(dirIn, "ares", nil)
+	if err != nil {
+		return errors.New(fmt.Sprintf("no ares files in %s\n", dirIn))
+	}
+
+	for _, f := range files {
+		err = CleanAres(f, strings.Replace(f,dirIn, dirOut,1), noComment)
+		if err != nil {
+			Logger.Println(err)
+		}
+	}
+	return nil
 }
 
 func CleanAres(in, out string, noComment bool) error {
@@ -272,7 +299,7 @@ func CleanAres(in, out string, noComment bool) error {
 
 	fileIn, err := os.Open(in)
 	if err != nil {
-		log.Fatal(err)
+		Logger.Fatal(err)
 	}
 	defer fileIn.Close()
 	scanner := bufio.NewScanner(fileIn)
@@ -280,18 +307,18 @@ func CleanAres(in, out string, noComment bool) error {
 	theDir := filepath.Dir(out)
 	err = ltfile.CreateDirs(theDir)
 	if err != nil {
-		log.Fatal(err)
+		Logger.Fatal(err)
 	}
 	fileOut, err := os.Create(out)
 	if err != nil {
-		log.Fatal(err)
+		Logger.Fatal(err)
 	}
 	defer fileOut.Close()
 	w := bufio.NewWriter(fileOut)
 
 	library, err = LibraryName(in)
 	if err != nil {
-		log.Fatal(err)
+		Logger.Fatal(err)
 	}
 
 	var blockComment bool
