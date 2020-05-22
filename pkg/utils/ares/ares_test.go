@@ -3,6 +3,7 @@ package ares
 import (
 	"flag"
 	"fmt"
+	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -272,6 +273,7 @@ func TestCleanAres(t *testing.T) {
 	//in := filepath.Join(dir,"in","dismissals_gr_GR_cog.ares")
 	//in := filepath.Join(dir,"in","testcases_en_EN_cog.ares")
 	//in := "C:\\Users\\paulbjr\\doxa\\repos\\ares\\AGES-Initiatives"
+	InBase = in
 
 	if strings.ContainsAny(*outArg, ":/\\") { // full path
 		out = *outArg
@@ -281,16 +283,16 @@ func TestCleanAres(t *testing.T) {
 	//out := filepath.Join(dir,"out","dismissals_gr_GR_cog.ares")
 	//out := filepath.Join(dir,"out","testcases_en_EN_cog.ares")
 	//out := filepath.Join(dir,"out","root")
+	OutBase = out
 
 	var walkErr error
 
-	fi, _ := os.Stat(in)
-	if !fi.IsDir() && strings.HasSuffix(in, ".ares") {
+	if ltfile.FileExists(in) && strings.HasSuffix(in, ".ares") {
 		walkErr = CleanAres(in, out, *suppressComments)  // processing a file, nor a directory
 		if walkErr != nil {
 			allErrors = append(allErrors,walkErr)
 		} else {
-			aresErrors = GetAresErrors(out)
+			aresErrors = GetAresErrors(in)
 			for _, err := range *aresErrors {
 				allErrors = append(allErrors, err)
 			}
@@ -301,16 +303,15 @@ func TestCleanAres(t *testing.T) {
 				fmt.Printf("prevent panic by handling failure accessing path %q: %v\n", path, err)
 				return err
 			} else {
-				//fmt.Printf("process directory: %q\n", path)
-				if !info.IsDir() && !strings.Contains(path, ".git") {
-					fname := info.Name()
+				if ltfile.FileExists(path) && !strings.Contains(path, ".git") {
 					if strings.HasSuffix(path, ".ares") {
-						fmt.Printf("clean file: %q on %q\n",fname, path)
-						walkErr = CleanAres(path, out + path[len(in):], *suppressComments)
+						outFile := out + string(os.PathSeparator) +  path[len(InBase):]
+						walkErr = CleanAres(path, outFile, *suppressComments)
 						if walkErr != nil {
 							allErrors = append(allErrors,walkErr)
 						} else {
-							aresErrors = GetAresErrors(out + path[len(in):])
+							// look for errors in the output file
+							aresErrors = GetAresErrors(outFile)
 							for _, err := range *aresErrors {
 								allErrors = append(allErrors, err)
 							}
@@ -320,6 +321,17 @@ func TestCleanAres(t *testing.T) {
 			}
 			return nil
 		})
+	}
+
+	for libName, libRefs := range AllReferences {
+		for keyName, references := range libRefs {
+			if _, ok := AllDefinitions[libName][keyName]; !ok  {
+				t.Error(fmt.Sprintf("In library %v, definition NOT found for key: %q",libName,keyName))
+				for _, ref := range references {
+					t.Error(fmt.Sprintf("    key referenced on line %d of %v",ref.line,ref.file))
+				}
+			}
+		}
 	}
 
 	// len(allErrors) will be zero if all errors were corrected by CleanAres.
