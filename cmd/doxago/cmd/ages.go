@@ -40,6 +40,7 @@ The ages command will be removed once AGES, Initiatives is using doxa instead of
 			}
 		} else if fixares {
 			fmt.Println("Fixing problems in ares files")
+
 		} else {
 			fmt.Printf("You must provide a flag, e.g. to convert templates: doxago ages --atem2lml; to fix ares: doxago ages --cleanares\n")
 		}
