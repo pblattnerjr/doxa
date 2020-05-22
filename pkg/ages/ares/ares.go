@@ -182,11 +182,11 @@ type aresReference struct {
 	file string
 	line int
 }
-type libraryReferences map[string] []aresReference  // count the number of times this reference is found
-var  AllReferences  = make(map[string] libraryReferences) // all references for all libraries
+type libraryReferences map[string] []aresReference       // count the number of times this reference is found
+var  AllReferences  = make(map[string]libraryReferences) // all references for all libraries
 
 type aresReferences map[string] string
-var  AllDefinitions  = make(map[string] aresReferences) // all references for all libraries
+var  AllDefinitions  = make(map[string]aresReferences) // all references for all libraries
 
 func saveDefinition(k string, v string, c string, noComment bool,
 	definitions map[string]string, commentsForKey map[string]string) bool {
@@ -264,12 +264,18 @@ func CleanAresFiles(dirIn, dirOut string, noComment bool, logger *log.Logger) er
 	Logger = logger
 	dirIn = ltfile.ResolvePath(dirIn)
 	dirOut = ltfile.ResolvePath(dirOut)
-	files, err := ltfile.FileMatcher(dirIn, "ares", nil)
+
+	// filter for only files that have a domain, e.g. gr_gr_cog
+	var expressions = []string{
+		".*_.*_.*",
+	}
+	files, err := ltfile.FileMatcher(dirIn, "ares", expressions)
 	if err != nil {
 		return errors.New(fmt.Sprintf("no ares files in %s\n", dirIn))
 	}
 
 	for _, f := range files {
+		fmt.Println(filepath.Base(f))
 		err = CleanAres(f, strings.Replace(f,dirIn, dirOut,1), noComment)
 		if err != nil {
 			Logger.Println(err)
@@ -318,7 +324,12 @@ func CleanAres(in, out string, noComment bool) error {
 
 	library, err = LibraryName(in)
 	if err != nil {
-		Logger.Fatal(err)
+		if Logger != nil {
+			Logger.Printf("%s %v", in, ErrFileMissingTopic)
+		} else {
+			Logger.Printf("%s %v", in, ErrFileMissingTopic)
+		}
+		return nil
 	}
 
 	var blockComment bool
@@ -386,7 +397,7 @@ func CleanAres(in, out string, noComment bool) error {
 				}
 				AllDefinitions[library][aresKey] = aresDef
 
-			} else { // without quotes, this is a reference, not a definition.  Store it for checking later
+			} else {                                              // without quotes, this is a reference, not a definition.  Store it for checking later
 				if _,ok := AllReferences[library][aresKey]; !ok { // of there is no entry for the key reference
 					refs := make(libraryReferences)
 					AllReferences[library] = refs
