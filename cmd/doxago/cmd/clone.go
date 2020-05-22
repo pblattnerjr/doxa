@@ -30,15 +30,14 @@ var cloneCmd = &cobra.Command{
 	Use:   "clone",
 	Short: "clone the github repos listed in the config file",
 	Long: `clone the github repositories listed in the config file
-that are identified by the key github.repos, to the ares.dir (directory)
-value setRecord in the config file. Be aware that if the directory exists,
+that are identified by the key github.repos, to the ares.dir (directory).
+Be aware that if the directory exists,
 it will first be deleted.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		start := time.Now()
 
-		// setRecord popPath the logger, which will be passed to the functions that do the processing
 		LogFile, err := os.OpenFile(LogFilename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 		if err != nil {
 			panic(err)
@@ -82,6 +81,6 @@ it will first be deleted.
 
 func init() {
 	rootCmd.AddCommand(cloneCmd)
-	cloneCmd.Flags().StringP("repo", "r", "site", "type of repositories to process, e.g. ares, site. For example, doxago clone -r ares")
+	cloneCmd.Flags().StringP("repo", "r", "ares", "type of repositories to process, e.g. ares, atem, sys, site. For example, doxago clone -r ares")
 }
 

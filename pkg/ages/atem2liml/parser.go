@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"text/scanner"
+	"unicode"
 )
 
 type LookupMethod int
@@ -213,26 +214,50 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 	var lines []string
 	var lineNbr int
 
-	if lines, err = ltfile.GetFileLines(fileIn); err != nil {return err}
+	if lines, err = ltfile.GetFileLines(fileIn); err != nil {
+		return err
+	}
 	for i, line := range lines {
 		lineNbr = i + 1
+		// normalize the text to make parsing easier
 		text := strings.ReplaceAll(line, "-", "_")
+		text = strings.ReplaceAll(text,"<"," < ")
+		text = strings.ReplaceAll(text,">"," > ")
+
+		// set up scanner
 		var s scanner.Scanner
 		s.Init(strings.NewReader(text))
-		s.Whitespace = 1<<':' | 1<<'-' | 1<<'\t' | 1<<' ' // treat these as white space
+		s.Whitespace = 1<<'\t' | 1<<' ' | 1<<'*' // treat these as white space
+		s.IsIdentRune = func(ch rune, i int) bool {
+			return ch == '.' || ch == '_' || ch == '@' || ch == '<' || ch == '>' || unicode.IsLetter(ch) || unicode.IsDigit(ch) && i > 0
+		}
+
+		// set up string builders
 		lineSB := strings.Builder{}
 		identifierSB := strings.Builder{}
+
+		// initialize line state
 		currentState = LineStart
+		buildingSid := false
+		buildingRid := false
 
 		for tok := s.Scan(); tok != scanner.EOF; tok = s.Scan() {
 			token := s.TokenText()
-
 			switch token {
 			case "Actor":
 				lineSB.WriteString(fmt.Sprintf("p.actor "))
 				currentState = GotActor
 			case "@":
 				currentState = GotAmpersand
+			case ":":
+				currentState = GotColon
+			case "=":
+				currentState = GotEqualSign
+			case "<":
+				currentState = GotLessThan
+			case ">":
+			case "/":
+				lineSB.WriteString(" ) ")
 			case "All_Liturgical_Day_Properties":
 				currentState = GotAtAllLiturgicalDayProperties
 			case "day":
@@ -264,7 +289,11 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 			case "Lukan_Cycle_Week_Day":
 				currentState = GotAtLukanCycleWeekDay
 			case "mode":
-				currentState = GotAtMode
+				if buildingSid || buildingRid {
+					identifierSB.WriteString(token)
+				} else {
+					currentState = GotAtMode
+				}
 			case "Mode_of_Week":
 				currentState = GotAtModeOfWeek
 			case "Name_of_Period":
@@ -287,8 +316,6 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 				currentState = GotBreakTypePage
 			case "bTag":
 				currentState = GotBlock
-			case ":":
-				currentState = GotColon
 			case "Dialog":
 				lineSB.WriteString(fmt.Sprintf("p.dialog "))
 				currentState = GotDialog
@@ -313,14 +340,12 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 				currentState = GotEndHymn
 			case "End_Insert":
 				sectionId := identifierSB.String()
-				if strings.HasSuffix(sectionId,".") {
-					// TODO: figure out why it sometimes ends with dot
-					sectionId = sectionId[:len(sectionId)-1]
-				}
 				identifierSB.Reset()
 				identifierSB.WriteString(resolvePath(sectionId, currentInternalPath, &mt, tTree, sTree))
 				if identifierSB.Len() == 0 {
-					fmt.Printf("Could not resolve section path %s\n",sectionId)
+					fmt.Printf("Could not resolve section path %s\n", sectionId)
+				} else {
+					lineSB.WriteString(fmt.Sprintf("import \"%s\"",identifierSB.String()))
 				}
 			case "End_Media":
 				currentState = GotEndMedia
@@ -380,8 +405,6 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 				currentState = GotEndVerse
 			case "end-when":
 				currentState = GotEndWhen
-			case "=":
-				currentState = GotEqualSign
 			case "center":
 				currentState = GotFooterColumnCenter
 			case "left":
@@ -418,7 +441,11 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 			case "pageNbr":
 				currentState = GotFooterPageNumber
 			case "title":
-				lineSB.WriteString(token)
+				if buildingSid || buildingRid {
+					identifierSB.WriteString(token)
+				} else {
+					lineSB.WriteString(token)
+				}
 				//if currentState == GotSection {
 				//	mt.ID = mt.ID + pathSeparator + token
 				//	mt.TemplateDir = dirOut
@@ -497,7 +524,12 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 					currentState = GotReading
 				}
 			case "rid":
-				lineSB.WriteString(fmt.Sprintf("rid "))
+				if identifierSB.Len() > 0 {
+					lineSB.WriteString(fmt.Sprintf("rid \"%s\" ", identifierSB.String()))
+					identifierSB.Reset()
+					buildingSid = false
+				}
+				buildingRid = true
 				currentState = GotRid
 			case "role":
 				currentState = GotRole
@@ -523,7 +555,6 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 			case "Set_Page_Number":
 				currentState = GotSetPageNumber
 			case "sid":
-				lineSB.WriteString(fmt.Sprintf("sid "))
 				currentState = GotSid
 			case "Status":
 				lineSB.WriteString("status: ")
@@ -863,31 +894,10 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 					case GotHymn:
 					case GotImport:
 						{
-							switch token {
-							case ".":
-								if s.Peek() == '*' {
-									mt.addImport(identifierSB.String())
-								} else {
-									parts := strings.Split(token, "_")
-									if len(parts) == 4 {
-										sb := strings.Builder{}
-										sb.WriteString(parts[1])
-										sb.WriteString("_")
-										sb.WriteString(strings.ToLower(parts[2]))
-										sb.WriteString("_")
-										sb.WriteString(parts[3])
-										sb.WriteString(pathSeparator)
-										identifierSB.WriteString(parts[0])
-										sb.WriteString(identifierSB.String())
-										mt.addImport(identifierSB.String())
-									} else {
-										if identifierSB.Len() > 0 { // append the period
-											identifierSB.WriteString(token)
-										}
-									}
-								}
-							case "*": // ignore
-							default:
+							if strings.HasSuffix(token, ".") && s.Peek() == '*' {
+								// strip off final period
+								token = token[:len(token)-1]
+								// convert to lml path and store it in mt
 								parts := strings.Split(token, "_")
 								if len(parts) == 4 {
 									sb := strings.Builder{}
@@ -901,9 +911,8 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 									sb.WriteString(identifierSB.String())
 									sb.WriteString(pathSeparator)
 									mt.addImport(sb.String())
-									identifierSB.Reset()
-								} else {
-									identifierSB.WriteString(token)
+								} else { // store import in mt as is.
+									mt.addImport(token)
 								}
 							}
 						}
@@ -918,6 +927,15 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 					case GotInsertTemplate:
 						{
 							lineSB.WriteString(token)
+						}
+					case GotLessThan:
+						{
+							tag := ITags.Map[token]
+							if len(tag) > 0 {
+								lineSB.WriteString(fmt.Sprintf("%s ( ", tag))
+							} else {
+								fmt.Printf("Could not find tag %s\n", tag)
+							}
 						}
 					case GotMedia:
 						{
@@ -972,7 +990,8 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 						}
 					case GotRid:
 						{
-							report(mt.ID, lineNbr, GotRid.stateName())
+							lineSB.WriteString(fmt.Sprintf("rid \"%s\" ", token))
+							currentState = Neutral
 						}
 					case GotRole:
 						{
@@ -1011,7 +1030,8 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 						}
 					case GotSid:
 						{
-							lineSB.WriteString(token)
+							lineSB.WriteString(fmt.Sprintf("sid \"%s\" ", token))
+							currentState = Neutral
 						}
 					case GotStatus:
 						{
@@ -1019,7 +1039,7 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 							switch token {
 							case "NA":
 								{
-								status = statuses.NA.String()
+									status = statuses.NA.String()
 								}
 							case "DRAFT":
 								{
@@ -1050,7 +1070,7 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 						}
 					case GotTemplateName:
 						{
-						lineSB.WriteString(token)
+							lineSB.WriteString(token)
 						}
 					case GotTemplateStatusDraft:
 						{
@@ -1129,27 +1149,6 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 		}
 		if lineSB.Len() > 0 || identifierSB.Len() > 0 {
 			switch currentState {
-			case GotImport: // lml does not have scope imports
-				//{
-				//	if identifierSB.Len() > 0 {
-				//		theImport := identifierSB.String()
-				//		if strings.HasPrefix(theImport,".") && strings.HasSuffix(theImport, ".") {
-				//		 // ignore
-				//		} else {
-				//			switch theImport {
-				//			case "iTags", "bTags", "roles", "rules": // ignore
-				//			default:
-				//				{
-				//					lineSB.WriteString("import \"")
-				//					lineSB.WriteString(identifierSB.String())
-				//					lineSB.WriteString("\"")
-				//				}
-				//			}
-				//		}
-				//		identifierSB.Reset()
-				//	}
-				//}
-			case GotInsertSection:
 			case GotStatus:
 				{
 					lineSB.WriteString("\n")
@@ -1161,6 +1160,9 @@ func ParseTemplate(fileIn, dirOut, id string, tTree, sTree *btree.Tree) error {
 			}
 			if lineSB.Len() > 0 {
 				lineOut := lineSB.String()
+				// atem files use </> to mark end of a span.  We converted it to .x
+				// if a .x follow
+				lineOut = strings.ReplaceAll(lineOut,".x .", ".")
 				mt.Writer.WriteString(fmt.Sprintf("%s\n", lineOut))
 				// TODO: remove next line for production
 				mt.Writer.Flush()
@@ -1244,12 +1246,14 @@ const (
 	GotFooterPageNumber                      // @pageNbr
 	GotFooterTitle                           // @title
 	GotHeaderFooterText                      // @text
+	GotGreaterThan                           // >
 	GotHead                                  // Head
 	GotHymn                                  // Hymn
 	GotImport                                // import
 	GotInsertPreface                         // Insert_preface - unused
 	GotInsertSection                         // Insert_section
 	GotInsertTemplate                        // Insert_template
+	GotLessThan                              // <
 	GotMedia                                 // Media
 	GotMediaOff                              // media-off
 	GotMonth                                 // month
@@ -1494,6 +1498,9 @@ func (s state) stateName() string {
 	case GotFooterTitle:
 		return "GotFooterTitle"
 
+	case GotGreaterThan:
+		return "GotGreaterThan"
+
 	case GotHeaderFooterText:
 		return "GotHeaderFooterText"
 
@@ -1511,6 +1518,9 @@ func (s state) stateName() string {
 
 	case GotInsertTemplate:
 		return "GotInsertTemplate"
+
+	case GotLessThan:
+		return "GotLessThan"
 
 	case GotMedia:
 		return "GotMedia"
@@ -1679,6 +1689,7 @@ func getValue(id string) string {
 		return "unknown id " + id
 	}
 }
+
 // resolvePath attempts to resolve the path in the following order:
 // 1. path as is, using templates tree
 // 2. path as is, using sections tree
@@ -1693,10 +1704,10 @@ func resolvePath(pathToResolve, currentInternalPath string, mt *MetaTemplate, tT
 		return v.(SectionNode).Path
 	} else {
 		// try  to resolve path within scope of containing sections within the current template
-		parts := strings.Split(currentInternalPath,".")
+		parts := strings.Split(currentInternalPath, ".")
 		l := len(parts)
 		for i, _ := range parts {
-			sectionId := strings.Join(parts[0:l-i],".") + "." + pathToResolve
+			sectionId := strings.Join(parts[0:l-i], ".") + "." + pathToResolve
 			if v, ok := mt.Sections.Get(sectionId); ok {
 				return v.(string)
 				break
@@ -1704,7 +1715,7 @@ func resolvePath(pathToResolve, currentInternalPath string, mt *MetaTemplate, tT
 		}
 		// if we get here, we have not resolved the path yet.
 		// try to resolve the path using the imports
-		for _ , impt := range mt.Imports {
+		for _, impt := range mt.Imports {
 			sectionId := impt + "." + pathToResolve
 			if v, ok := sTree.Get(sectionId); ok {
 				return v.(SectionNode).Path

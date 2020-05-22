@@ -136,3 +136,20 @@ func ResolvePath(path string) string {
 	}
 	return newPath
 }
+// GetFileLines opens the file at the specified path and returns an array of its lines
+func GetFileLines(path string) ([]string, error) {
+	readFile, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	fileScanner := bufio.NewScanner(readFile)
+	fileScanner.Split(bufio.ScanLines)
+	var fileTextLines []string
+
+	for fileScanner.Scan() {
+		fileTextLines = append(fileTextLines, fileScanner.Text())
+	}
+
+	readFile.Close()
+	return fileTextLines, err
+}

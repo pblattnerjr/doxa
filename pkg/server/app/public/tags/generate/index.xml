@@ -2,39 +2,39 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>generate on Doxa</title>
-    <link>../tags/generate/</link>
+    <link>/tags/generate/</link>
     <description>Recent content in generate on Doxa</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Tue, 01 May 2018 07:39:12 +1000</lastBuildDate>
     
-	<atom:link href="../tags/generate/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="/tags/generate/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>Generate</title>
-      <link>../generate/</link>
+      <link>/generate/</link>
       <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
       
-      <guid>../generate/</guid>
+      <guid>/generate/</guid>
       <description>Information about generating will be here.</description>
     </item>
     
     <item>
       <title>Generate Doc</title>
-      <link>../generatedoc/</link>
+      <link>/generatedoc/</link>
       <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
       
-      <guid>../generatedoc/</guid>
+      <guid>/generatedoc/</guid>
       <description>Information about generating the contents of a website will be here.</description>
     </item>
     
     <item>
       <title>Generate Website</title>
-      <link>../generatewebsite/</link>
+      <link>/generatewebsite/</link>
       <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
       
-      <guid>../generatewebsite/</guid>
+      <guid>/generatewebsite/</guid>
       <description>Information about generating the contents of a website will be here.</description>
     </item>
     

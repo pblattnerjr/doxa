@@ -9,9 +9,11 @@ CodeMirror.defineSimpleMode("lml", {
             token: ["keyword", null, "variable-2"]},
         // Rules are matched in the order in which they appear, so there is
         // no ambiguity between this one and the one above
-        {regex: /(?:css|day|id|insert|month|nid|otherwise|rid|sid|status|type|use|ver|year|when_exists|when_mode_of_week_is)\b/,
+        {regex: /(?:Date|PageHeaderEven|PageHeaderOdd|PageFooterEven|PageFooterOdd|Title|SetPageNumber|CSS|Day|ID|Month|Status|Type|Year)\b/,
             token: "keyword"},
-        {regex: /true|false|book|service|draft|review|final/, token: "atom"},
+        {regex: /(?:LukanCycleDay|ModeOfWeek|SundayAfterElevationOfCross|SundaysBeforeTriodion|MovableCycleDay|NameOfDay|ModeOfWeek|@Ver|Exists|Date|@Date|@PageNbr|@Lookup|if|else|switch|case|default|thru|left|center|right|lang|insert|nid|rid|sid|use|ver)\b/,
+            token: "keyword"},
+        {regex: /M1|M2|M3|M4|M5|M6|M7|M8|L1|L2|L3|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|true|false|book|service|draft|review|final/, token: "atom"},
         {regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i,
             token: "number"},
         {regex: /\/\/.*/, token: "comment"},

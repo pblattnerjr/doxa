@@ -2,48 +2,48 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Abouts on Doxa</title>
-    <link>../about/</link>
+    <link>/about/</link>
     <description>Recent content in Abouts on Doxa</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Mon, 30 Apr 2018 10:05:49 +1000</lastBuildDate>
     
-	<atom:link href="../about/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="/about/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>AGES</title>
-      <link>../about/ages/</link>
+      <link>/about/ages/</link>
       <pubDate>Mon, 30 Apr 2018 10:05:49 +1000</pubDate>
       
-      <guid>../about/ages/</guid>
+      <guid>/about/ages/</guid>
       <description>About AGES.</description>
     </item>
     
     <item>
       <title>Doxa</title>
-      <link>../about/doxa/</link>
+      <link>/about/doxa/</link>
       <pubDate>Mon, 30 Apr 2018 10:05:49 +1000</pubDate>
       
-      <guid>../about/doxa/</guid>
+      <guid>/about/doxa/</guid>
       <description>About Doxa</description>
     </item>
     
     <item>
       <title>OLW</title>
-      <link>../about/olw/</link>
+      <link>/about/olw/</link>
       <pubDate>Mon, 30 Apr 2018 10:05:49 +1000</pubDate>
       
-      <guid>../about/olw/</guid>
+      <guid>/about/olw/</guid>
       <description>About OLW</description>
     </item>
     
     <item>
       <title>Photo on Home Page</title>
-      <link>../about/photo/</link>
+      <link>/about/photo/</link>
       <pubDate>Mon, 30 Apr 2018 10:05:49 +1000</pubDate>
       
-      <guid>../about/photo/</guid>
+      <guid>/about/photo/</guid>
       <description>The home page of Doxa shows the chapel in the St. Photios Greek Orthodox National Shrine, which gave permission for its use.</description>
     </item>
     

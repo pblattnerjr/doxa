@@ -11,6 +11,7 @@ import (
 	"text/template"
 )
 const (
+	AtemDir = "atem"
 	DataDir = "data"
 	HTTPDir = "http"
 	LogDir = "logs"
@@ -19,15 +20,18 @@ const (
 	SQL = "sql"
 	SQLDbName = "liturgical.db"
 	StaticDir = "liml"
+	SysDir = "sys"
 	TemplatesDir = "templates"
 )
 type Paths struct {
+	AtemPath string // AGES atem files
 	DbPath string
 	HomePath string
 	HTTPPath string
 	LogPath string
 	ReposPath string
 	SitePath string
+	SysPath string // AGES ares system files
 	TemplatesPath string
 }
 func NewPaths(home string, siteUrl string) *Paths {
@@ -40,6 +44,8 @@ func NewPaths(home string, siteUrl string) *Paths {
 	sitePath, _ := repos.DirPath(filepath.Join(paths.ReposPath, Site),siteUrl)
 	paths.SitePath = sitePath
 	paths.TemplatesPath = filepath.Join(paths.HomePath, TemplatesDir)
+	paths.AtemPath = filepath.Join(paths.ReposPath, AtemDir)
+	paths.SysPath = filepath.Join(paths.ReposPath, SysDir)
 	return paths
 }
 // Initializes the config file and directories
@@ -128,6 +134,13 @@ github.repos.ares:
 
 # OSLW repo (optional)
 github.repos.oslw: https://github.com/OCMC-Translation-Projects/service.book.ke.oak.git
+
+# template repo (optional). Used for converting ares templates to lml templates
+github.repos.atem: https://github.com/AGES-Initiatives/ages-alwb-templates.git
+
+# system repo (optional). Used for converting ares templates to lml templates
+github.repos.sys: https://github.com/AGES-Initiatives/ages-alwb-system.git
+
 # glory is the index of which language to use to give glory.
 # The index starts with 0 (for Greek)
 glory: 0

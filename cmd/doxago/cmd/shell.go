@@ -504,13 +504,14 @@ func appendCommands() {
 		{"cd ~", "CHANGE path to root"},
 		{"cd {number}", "After a find or ls, numbers can be used to change path, e.g. cd 244"},
 		{"cmp", "compare values for this topic/key. Must be 3 levels deep."},
-		{"cp", "COPY contents"},
+		{"cp", "*COPY contents"},
 		{"exit", "Exit Doxago Shell"},
 		{"find", "FIND records with specified value"},
 		{"lml", "Display topic/key in the format required for the Liturgical Markup Language."},
 		{"ls", "LIST contents. If at root, lists libraries. If 3 levels deep shows record value"},
-		{"mv", "MOVE (rename) matching id to new id"},
-		{"rm", "REMOVE for matching id"},
+		{"mk", "*MAKE. At root, mk en_us_xyz makes library. 1 level deep, mk actors makes new topic, 3 deep mk Priest makes new key"},
+		{"mv", "*MOVE (rename) matching id to new id"},
+		{"rm", "*REMOVE for matching id"},
 		{"set comment", "SET comment for current record. Must be 3 levels deep."},
 		{"set redirect", "SET redirect for current record. Must be 3 levels deep."},
 		{"set value", "SET value for current record. Must be 3 levels deep."},
@@ -906,6 +907,7 @@ func showHelp() {
 		fmt.Printf("%s:\t%s\n", command.Text, command.Description)
 	}
 	fmt.Println("")
+	fmt.Println("* indicates a command that is not available yet.")
 	fmt.Println("Commands that start with a dot are for the settings.")
 	fmt.Println("The settings affect the way the other commands behave.")
 	fmt.Printf("As you type, suggestions will appear as a pop up.\nTab to set focus on the pop up.\nYou can scroll up or down using the arrow keys.\nUse the <Enter> key to select an item in the pop up.\n")

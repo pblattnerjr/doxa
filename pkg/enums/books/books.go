@@ -10,7 +10,7 @@ const (
 	Heirmologion
 	Horologion
 	Katavasias
-	Lectionary
+	Lectionaryd
 	Menaion
 	Octochechos
 	Other

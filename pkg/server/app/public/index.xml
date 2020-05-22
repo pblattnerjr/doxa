@@ -2,57 +2,57 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Doxa</title>
-    <link>../</link>
+    <link>/</link>
     <description>Recent content on Doxa</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Sat, 12 May 2018 13:49:50 +1000</lastBuildDate>
     
-	<atom:link href="../index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>Contact</title>
-      <link>../contact/</link>
+      <link>/contact/</link>
       <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
       
-      <guid>../contact/</guid>
+      <guid>/contact/</guid>
       <description></description>
     </item>
     
     <item>
       <title>Design Stylesheets</title>
-      <link>../designstylesheets/</link>
+      <link>/designstylesheets/</link>
       <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
       
-      <guid>../designstylesheets/</guid>
+      <guid>/designstylesheets/</guid>
       <description>This is the page for designing blocks of texts.</description>
     </item>
     
     <item>
       <title>Design Templates</title>
-      <link>../designtemplates/</link>
+      <link>/designtemplates/</link>
       <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
       
-      <guid>../designtemplates/</guid>
+      <guid>/designtemplates/</guid>
       <description>/** Example template written in the Liturgical Markup Language (.lml) Templates can be written using any text editor. This example uses a Codemirror editor in a browser, using the Twilight theme. The themes can be changed by the user. Future features of editor: -- lookup keywords for autocompletion. -- Lookup css classes for autocompletion. -- Lookup topic-keys -- Lookup template paths -- Search db text to find desired topic/key -- Verify the template is syntactically correct.</description>
     </item>
     
     <item>
       <title>Design Text Blocks</title>
-      <link>../designblocks/</link>
+      <link>/designblocks/</link>
       <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
       
-      <guid>../designblocks/</guid>
+      <guid>/designblocks/</guid>
       <description>This is the page for designing blocks of texts.</description>
     </item>
     
     <item>
       <title>Search Templates</title>
-      <link>../searchtemplates/</link>
+      <link>/searchtemplates/</link>
       <pubDate>Sat, 12 May 2018 13:49:50 +1000</pubDate>
       
-      <guid>../searchtemplates/</guid>
+      <guid>/searchtemplates/</guid>
       <description>This is the template search page.</description>
     </item>
     

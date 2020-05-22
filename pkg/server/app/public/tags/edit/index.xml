@@ -2,21 +2,21 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>edit on Doxa</title>
-    <link>../tags/edit/</link>
+    <link>/tags/edit/</link>
     <description>Recent content in edit on Doxa</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Tue, 01 May 2018 07:39:12 +1000</lastBuildDate>
     
-	<atom:link href="../tags/edit/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="/tags/edit/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>Edit</title>
-      <link>../edit/</link>
+      <link>/edit/</link>
       <pubDate>Tue, 01 May 2018 07:39:12 +1000</pubDate>
       
-      <guid>../edit/</guid>
+      <guid>/edit/</guid>
       <description>Information about editing will be here.</description>
     </item>
     
