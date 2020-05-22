@@ -4,12 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/liturgiko/doxa/pkg/utils/ltfile"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
+
 var fnp FilenameParts
 var suppressComments *bool
 var inArg *string
@@ -17,15 +17,15 @@ var outArg *string
 
 func init() {
 	fnp, _ = ParseAresFileName("actors_gr_gr_cog.ares")
-	suppressComments = flag.Bool("suppressComments",false,"suppress explanatory comments")
-	inArg = flag.String("in","ABC", "input file or folder")
-	outArg = flag.String("out","XYZ", "output file or folder")
+	suppressComments = flag.Bool("suppressComments", false, "suppress explanatory comments")
+	inArg = flag.String("in", "ABC", "input file or folder")
+	outArg = flag.String("out", "XYZ", "output file or folder")
 }
 
 // Test with key and value
 func TestLineHasKV(t *testing.T) {
 	l := "x = \"y\""
-	lineParts, err := ParseLine(fnp,l)
+	lineParts, err := ParseLine(fnp, l)
 	if err != nil {
 		t.Error("expected no error, got", err.Error())
 	}
@@ -90,8 +90,8 @@ func TestLineHasRedirect(t *testing.T) {
 	if len(lineParts.Value) > 0 {
 		t.Error("Expected len(value) < 1, got", lineParts.Value)
 	}
-	if lineParts.Redirect != "gr_gr_cog~actors~Priest" {
-		t.Error("Expected redirect = gr_gr_cog~actors~Priest, got", lineParts.Redirect)
+	if lineParts.Redirect != "gr_gr_cog/actors/Priest" {
+		t.Error("Expected redirect = gr_gr_cog/actors/Priest, got", lineParts.Redirect)
 	}
 	if len(lineParts.Comment) > 0 {
 		t.Error("Expected len(comment) == 0, got", lineParts.Comment)
@@ -137,7 +137,7 @@ func TestLineHasKVC(t *testing.T) {
 // Test with commented out line
 func TestLineIsComment(t *testing.T) {
 	l := "// x = \"y\""
-	lineParts, err := ParseLine(fnp,l)
+	lineParts, err := ParseLine(fnp, l)
 	if err != nil {
 		t.Error("expected no error, got", err.Error())
 	}
@@ -259,20 +259,17 @@ func TestCleanAres(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	fmt.Println(filename)
 	dir, _ := filepath.Split(filename)
-	dir = filepath.Join(dir,"test")
+	dir = filepath.Join(dir, "test")
 
 	flag.Parse()
 
-	var in,out string
+	var in, out string
 
 	if strings.ContainsAny(*inArg, ":/\\") { // full path
 		in = *inArg
 	} else {
 		in = filepath.Join(dir, "in", *inArg)
 	}
-	//in := filepath.Join(dir,"in","dismissals_gr_GR_cog.ares")
-	//in := filepath.Join(dir,"in","testcases_en_EN_cog.ares")
-	//in := "C:\\Users\\paulbjr\\doxa\\repos\\ares\\AGES-Initiatives"
 	InBase = in
 
 	if strings.ContainsAny(*outArg, ":/\\") { // full path
@@ -280,55 +277,48 @@ func TestCleanAres(t *testing.T) {
 	} else {
 		out = filepath.Join(dir, "out", *outArg)
 	}
-	//out := filepath.Join(dir,"out","dismissals_gr_GR_cog.ares")
-	//out := filepath.Join(dir,"out","testcases_en_EN_cog.ares")
-	//out := filepath.Join(dir,"out","root")
 	OutBase = out
 
-	var walkErr error
+	if strings.ContainsAny(*outArg, ":/\\") { // full path
+		out = *outArg
+	} else {
+		out = filepath.Join(dir, "out", *outArg)
+	}
 
-	if ltfile.FileExists(in) && strings.HasSuffix(in, ".ares") {
-		walkErr = CleanAres(in, out, *suppressComments)  // processing a file, nor a directory
+	files, err := ltfile.FileMatcher(InBase, "ares", nil)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if len(files) == 0 {
+		t.Fatalf("no ares files found in %s", in)
+	}
+
+	var walkErr error
+	for _, file := range files {
+		fileOut := filepath.Join(OutBase, filepath.Base(file))
+		walkErr = CleanAres(file, fileOut, *suppressComments) // processing a file, nor a directory
 		if walkErr != nil {
-			allErrors = append(allErrors,walkErr)
+			allErrors = append(allErrors, walkErr)
 		} else {
-			aresErrors = GetAresErrors(in)
+			aresErrors = GetAresErrors(fileOut)
 			for _, err := range *aresErrors {
 				allErrors = append(allErrors, err)
 			}
 		}
-	} else {
-		walkErr = filepath.Walk(in, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				fmt.Printf("prevent panic by handling failure accessing path %q: %v\n", path, err)
-				return err
-			} else {
-				if ltfile.FileExists(path) && !strings.Contains(path, ".git") {
-					if strings.HasSuffix(path, ".ares") {
-						outFile := out + string(os.PathSeparator) +  path[len(InBase):]
-						walkErr = CleanAres(path, outFile, *suppressComments)
-						if walkErr != nil {
-							allErrors = append(allErrors,walkErr)
-						} else {
-							// look for errors in the output file
-							aresErrors = GetAresErrors(outFile)
-							for _, err := range *aresErrors {
-								allErrors = append(allErrors, err)
-							}
-						}
-					}
-				}
-			}
-			return nil
-		})
+	}
+	var expectedBadReferences = map[string]string{
+		"gr_gr_cog":"dis101",
+		"en_en_cog":"testcase9",
 	}
 
 	for libName, libRefs := range AllReferences {
 		for keyName, references := range libRefs {
-			if _, ok := AllDefinitions[libName][keyName]; !ok  {
-				t.Error(fmt.Sprintf("In library %v, definition NOT found for key: %q",libName,keyName))
-				for _, ref := range references {
-					t.Error(fmt.Sprintf("    key referenced on line %d of %v",ref.line,ref.file))
+			if _, ok := AllDefinitions[libName][keyName]; !ok {
+				if value, ok := expectedBadReferences[libName]; !ok || value != keyName {
+					t.Error(fmt.Sprintf("In library %v, definition NOT found for key: %q", libName, keyName))
+					for _, ref := range references {
+						t.Error(fmt.Sprintf("    key referenced on line %d of %v", ref.line, ref.file))
+					}
 				}
 			}
 		}
@@ -342,6 +332,4 @@ func TestCleanAres(t *testing.T) {
 		}
 	}
 }
-
-
 
