@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	atem2lml "github.com/liturgiko/doxa/pkg/ages/atem2liml"
+	agesAres "github.com/liturgiko/doxa/pkg/ages/ares"
+	agesAtem "github.com/liturgiko/doxa/pkg/ages/atem2liml"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -35,12 +37,16 @@ The ages command will be removed once AGES, Initiatives is using doxa instead of
 			msg := fmt.Sprintf("converting atem to lml...\n")
 			fmt.Println(msg)
 			Logger.Println(msg)
-			if err = atem2lml.Process(Paths.SysPath, Paths.AtemPath, Paths.TemplatesPath); err != nil {
+			if err = agesAtem.Process(Paths.SysPath, Paths.AtemPath, Paths.TemplatesPath); err != nil {
 				Logger.Println(err.Error())
 			}
 		} else if fixares {
-			fmt.Println("Fixing problems in ares files")
-
+			in := filepath.Join(Paths.ReposPath,"ares")
+			out := filepath.Join(Paths.HomePath, "fixed/ares")
+			fmt.Printf("Fixing problems in ares files and writing new files to %s\n", out)
+			if err = agesAres.CleanAresFiles(in,out,false,&Logger); err != nil {
+				Logger.Println(err.Error())
+			}
 		} else {
 			fmt.Printf("You must provide a flag, e.g. to convert templates: doxago ages --atem2lml; to fix ares: doxago ages --cleanares\n")
 		}
