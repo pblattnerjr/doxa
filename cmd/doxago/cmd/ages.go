@@ -4,6 +4,7 @@ import (
 	"fmt"
 	agesAres "github.com/liturgiko/doxa/pkg/ages/ares"
 	agesAtem "github.com/liturgiko/doxa/pkg/ages/atem2liml"
+	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
@@ -32,6 +33,8 @@ The ages command will be removed once AGES, Initiatives is using doxa instead of
 		Logger.SetFlags(log.Ldate + log.Ltime + log.Lshortfile)
 		a2l, _ := cmd.Flags().GetBool("atem2lml")
 		fixares, _ := cmd.Flags().GetBool("cleanares")
+		noComment, _ := cmd.Flags().GetBool("nocomment")
+		in, _ := cmd.Flags().GetString("repodir")
 
 		if a2l {
 			msg := fmt.Sprintf("converting atem to lml...\n")
@@ -41,10 +44,20 @@ The ages command will be removed once AGES, Initiatives is using doxa instead of
 				Logger.Println(err.Error())
 			}
 		} else if fixares {
-			in := filepath.Join(Paths.ReposPath,"ares")
+			if len(in) == 0 {
+				in = filepath.Join(Paths.ReposPath,"ares")
+			}
+			if ! ltfile.DirExists(in) {
+				fmt.Printf("ares repos directory does not exist: %s\n",in)
+				fmt.Println("Please run ")
+				fmt.Println("\tdoxago clone -r ares ")
+				fmt.Println("Then run ")
+				fmt.Println("\tgodoxa ares --cleanares ")
+				os.Exit(1)
+			}
 			out := filepath.Join(Paths.HomePath, "fixed/ares")
 			fmt.Printf("Fixing problems in ares files and writing new files to %s\n", out)
-			if err = agesAres.CleanAresFiles(in,out,false,&Logger); err != nil {
+			if err = agesAres.CleanAresFiles(in,out, noComment,&Logger); err != nil {
 				Logger.Println(err.Error())
 			}
 		} else {
@@ -58,5 +71,7 @@ func init() {
 	rootCmd.AddCommand(agesCmd)
 	agesCmd.Flags().Bool("atem2lml" , false, "convert atem templates to lml files")
 	agesCmd.Flags().Bool("cleanares", false, "analyze ares files and fix problems")
+	agesCmd.Flags().Bool("nocomment", true, "add comments that explain ares fixes")
+	agesCmd.Flags().String("repodir", "", "directory of ares repositories to process")
 }
 
