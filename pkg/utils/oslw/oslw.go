@@ -10,7 +10,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/liturgiko/doxa/pkg/db/ltx2sql"
 	"github.com/liturgiko/doxa/pkg/models"
-	"github.com/liturgiko/doxa/pkg/utils/ares"
+	"github.com/liturgiko/doxa/pkg/ages/ares"
 	"github.com/liturgiko/doxa/pkg/utils/ltfile"
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
 	"log"

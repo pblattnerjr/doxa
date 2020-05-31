@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/liturgiko/doxa/pkg/utils/ares"
+	"github.com/liturgiko/doxa/pkg/ages/ares"
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
 	"log"
 	"strings"

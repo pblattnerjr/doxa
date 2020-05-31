@@ -3,7 +3,7 @@ package repos
 import (
 	"bufio"
 	"fmt"
-	"github.com/liturgiko/doxa/pkg/utils/ares"
+	"github.com/liturgiko/doxa/pkg/ages/ares"
 	"log"
 	"os"
 	"path/filepath"
