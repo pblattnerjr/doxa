@@ -168,8 +168,6 @@ func ToRedirectId(value string) (string, error) {
 const emptyString = "\"\""
 
 var lineCnt int
-var fileIn *os.File
-var fileOut *os.File
 
 var InBase string	// base path of all input files
 var OutBase string	// base path of all output files
@@ -279,6 +277,24 @@ func CleanAresFiles(dirIn, dirOut string, noComment bool, logger *log.Logger) er
 		err = CleanAres(f, strings.Replace(f,dirIn, dirOut,1), noComment)
 		if err != nil {
 			Logger.Println(err)
+		}
+	}
+
+	var expectedBadReferences = map[string]string{
+		"gr_gr_cog":"dis101",
+		"en_en_cog":"testcase9",
+	}
+
+	for libName, libRefs := range AllReferences {
+		for keyName, references := range libRefs {
+			if _, ok := AllDefinitions[libName][keyName]; !ok {
+				if value, ok := expectedBadReferences[libName]; !ok || value != keyName {
+					Logger.Printf("In library %v, definition NOT found for key: %q\n", libName, keyName)
+					for _, ref := range references {
+						Logger.Printf("    key referenced on line %d of %v\n", ref.line, ref.file)
+					}
+				}
+			}
 		}
 	}
 	return nil
