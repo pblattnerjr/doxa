@@ -2,8 +2,8 @@
 package mappers
 
 import (
+	"github.com/liturgiko/doxa/pkg/ages/ares"
 	"github.com/liturgiko/doxa/pkg/models"
-	"github.com/liturgiko/doxa/pkg/utils/ares"
 	"github.com/liturgiko/doxa/pkg/utils/ltstring"
 	"time"
 )

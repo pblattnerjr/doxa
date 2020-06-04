@@ -16,7 +16,6 @@ import (
 	"strings"
 )
 var Logger *log.Logger
-
 var (
 	ErrFileMissingAres      = errors.New("ares: file missing .ares extension")
 	ErrFileMissingTopic     = errors.New("ares: filename missing topic or domain")
@@ -275,7 +274,6 @@ func CleanAresFiles(dirIn, dirOut string, noComment bool, logger *log.Logger) er
 	}
 
 	for _, f := range files {
-		fmt.Println(filepath.Base(f))
 		err = CleanAres(f, strings.Replace(f,dirIn, dirOut,1), noComment)
 		if err != nil {
 			Logger.Println(err)

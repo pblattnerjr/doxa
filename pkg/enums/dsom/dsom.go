@@ -1,4 +1,7 @@
-//go:generate stringer -type=DayOfMonth
+//go:generate enumer -type=DayOfMonth -json -text -yaml -sql
+// 1) go get github.com/alvaroloes/enumer
+// 2) in the enum subfolder for this enum: go generate
+
 // Package dsom provides an enum of Days of the Month
 package dsom
 

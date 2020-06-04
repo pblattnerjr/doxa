@@ -8,9 +8,13 @@ package ldp
 import (
 	"errors"
 	"fmt"
+	"github.com/liturgiko/doxa/pkg/enums/calendarTypes"
+	"log"
 	"strconv"
+	"strings"
 	"time"
 )
+var logger log.Logger
 
 // Triodion: 1st day: Sunday of Publican and Pharisee.  9 weeks before Pascha.
 // 1st three Sundays precede Great Lent.
@@ -26,6 +30,7 @@ import (
 // LDP is the main struct for liturgical day properties
 type LDP struct {
 	TheDay                                   time.Time
+	CalendarType 							 calendarTypes.CalendarType
 	AllSaintsDateLastYear                    time.Time
 	AllSaintsDateThisYear                    time.Time
 	DayOfSeason                              int    // return 1..70 (0 if no day set). Valid only when isPentecostarion or isTriodion.
@@ -35,6 +40,7 @@ type LDP struct {
 	DaysSinceStartOfTriodion                 int
 	DaysSinceSundayAfterLastElevationOfCross int
 	DaysUntilStartOfTriodion                 int // Used to control lectionary and commemorations
+	ElevationOfCrossDateThisYear			 time.Time
 	ElevationOfCrossDateLast                 time.Time
 	EothinonNumber                           int // 0..11. Valid values for 11 week cycle, only valid on Sundays!!!!
 	GreatLentStartDate                       time.Time
@@ -55,6 +61,7 @@ type LDP struct {
 	NbrDayOfMonth                            string
 	NbrDayOfWeek                             string
 	NbrDayOfWeekOverride                     string
+	NbrModeOfWeek                            string
 	NbrMonth                                 string
 	NumberOfSundaysBeforeStartOfTriodion     int
 	originalYear                             int
@@ -106,34 +113,47 @@ func validateYMD(year, month, day int) error {
 	}
 	return nil
 }
-// Creates a new LDP initialized to the specified date
-func NewLDPYMD(year, month, day int) (LDP, error) {
-	var ldp LDP
-	if err := validateYMD(year, month, day); err != nil {return ldp, err}
 
+// Creates a new LDP initialized to the specified date
+func NewLDPYMD(year, month, day int, calendarType calendarTypes.CalendarType) (LDP, error) {
+	var ldp LDP
+	if err := validateYMD(year, month, day); err != nil {
+		return ldp, err
+	}
+	ldp.TheDay = NewDate(year, month, day)
+	ldp.CalendarType = calendarType
+	ldp.reinitializeOriginalDateTrackers()
+	ldp.SetLiturgicalPropertiesByDate(ldp.TheDay.Year())
+	ldp.SetYesterday()
+	return ldp, nil
+}
+
+// Returns a new LDP initialized to the specified month and day.  The year is set to the current one.
+func NewLDPMD(month, day int, calendarType calendarTypes.CalendarType) (LDP, error) {
+	var ldp LDP
 	today := time.Now()
+	year := today.Year()
+	if err := validateYMD(year, month, day); err != nil {
+		return ldp, err
+	}
+
 	t := NewDate(year, month, day)
 	// if the date is before today, do it for next year by default.
 	if t.Before(today) {
 		t = NewDate(year+1, month, day)
 	}
 	ldp.TheDay = t
+	ldp.CalendarType = calendarType
 	ldp.reinitializeOriginalDateTrackers()
 	ldp.SetLiturgicalPropertiesByDate(t.Year())
 	ldp.SetYesterday()
 	return ldp, nil
 }
 
-// Returns a new LDP initialized to the specified month and day.  The year is set to the current one.
-func NewLDPMD(month, day int) (LDP, error) {
-	ldp, err := NewLDPYMD(time.Now().Year(), month, day)
-	return ldp, err
-}
-
-// Returns a new LDP initialized for today's date
+// Returns a new LDP initialized for today's date and calendarType Gregorian
 func NewLDP() (LDP, error) {
 	now := time.Now()
-	ldp, err := NewLDPYMD(now.Year(), int(now.Month()), now.Day())
+	ldp, err := NewLDPYMD(now.Year(), int(now.Month()), now.Day(), calendarTypes.Gregorian)
 	return ldp, err
 }
 
@@ -274,29 +294,41 @@ func (ldp LDP) setDateTo(year, month, day int) {
 		ldp.originalDayOfSeason = ldp.DayOfSeason
 	}
 }
-func (ldp *LDP) ResetDate() {}
+func (ldp *LDP) ResetDate() {
+	if ldp.originalMonth == -1 && ldp.originalDay == -1 {
+		ldp.originalYear = int(ldp.TheDay.Year())
+		ldp.originalMonth = int(ldp.TheDay.Month())
+		ldp.originalDay = int(ldp.TheDay.Day())
+		ldp.originalDayOfSeason = ldp.DayOfSeason
+	} else {
+		ldp.TheDay = NewDate(ldp.originalYear, ldp.originalMonth, ldp.originalDay)
+		ldp.SetLiturgicalPropertiesByDate(ldp.originalYear)
+		ldp.SetYesterday()
+	}
+}
 func (ldp *LDP) setYesterday() {
 	ldp.TheDayBefore = ldp.TheDay.AddDate(0, 0, -1)
 }
-func (ldp *LDP) TimeDelta(dateFrom time.Time, days int) time.Time { return dateFrom }
+func (ldp *LDP) TimeDelta(dateFrom time.Time, days int) time.Time {
+	return dateFrom.AddDate(0, 0, days)
+}
 
 func (ldp *LDP) SetLiturgicalPropertiesByDate(year int) {
 	ldp.SetVariablesToDefaults()
-	useGregorianCalendar := true
-	ldp.PaschaDateLastYear = ComputeDayOfPascha(year-1, useGregorianCalendar)
-	ldp.PaschaDateThisYear = ComputeDayOfPascha(year, useGregorianCalendar)
+	ldp.PaschaDateLastYear = ComputeDayOfPascha(year-1, ldp.CalendarType)
+	ldp.PaschaDateThisYear = ComputeDayOfPascha(year, ldp.CalendarType)
 	ldp.PaschaDateLast = ldp.lastPaschaDate()
 	ldp.PaschaDateNext = ldp.nextPaschaDate()
 	// 10 weeks before Pascha (inclusive), Starts with the Sunday of Publican and Pharisee
-	ldp.TriodionStartDateThisYear = ldp.PaschaDateThisYear.AddDate(0, 0, -(10*7))
-	ldp.TriodionStartDateLastYear = ldp.PaschaDateLastYear.AddDate(0,0, -(10*7) )
-	ldp.TriodionStartDateNextYear = ldp.PaschaDateNext.AddDate(0,0, -(10*7) )
+	ldp.TriodionStartDateThisYear = ldp.PaschaDateThisYear.AddDate(0, 0, -(10 * 7))
+	ldp.TriodionStartDateLastYear = ldp.PaschaDateLastYear.AddDate(0, 0, -(10 * 7))
+	ldp.TriodionStartDateNextYear = ldp.PaschaDateNext.AddDate(0, 0, -(10 * 7))
 	ldp.setDateLastTriodionStart()
 
-	ldp.PalmSundayDate = ldp.PaschaDateThisYear.AddDate(0,0,-7 )
-	ldp.PentecostDate = ldp.PaschaDateThisYear.AddDate(0,0, 49 )
-	ldp.AllSaintsDateThisYear = ldp.PaschaDateThisYear.AddDate(0,0, 56 )
-	ldp.AllSaintsDateLastYear = ldp.PaschaDateLastYear.AddDate(0,0, 56 )
+	ldp.PalmSundayDate = ldp.PaschaDateThisYear.AddDate(0, 0, -7)
+	ldp.PentecostDate = ldp.PaschaDateThisYear.AddDate(0, 0, 49)
+	ldp.AllSaintsDateThisYear = ldp.PaschaDateThisYear.AddDate(0, 0, 56)
+	ldp.AllSaintsDateLastYear = ldp.PaschaDateLastYear.AddDate(0, 0, 56)
 	// Pentecost starts  with Pascha and ends with All Saints, which is the day before the beginning
 	// of the Apostle's Fast.
 	if ldp.TheDay.Equal(ldp.PaschaDateThisYear) ||
@@ -313,10 +345,10 @@ func (ldp *LDP) SetLiturgicalPropertiesByDate(year int) {
 	}
 
 	// Clean Monday, 7 weeks + a day before Pascha
-	ldp.GreatLentStartDate = NewDate(ldp.PaschaDateThisYear.Year(), 0,-(7*7)+1 )
-	ldp.PalmSundayNextDate = NewDate(ldp.PaschaDateNext.Year(), 0,-7 )
-	ldp.ThomasSundayDate = NewDate(ldp.PaschaDateLast.Year(), 0,7 )
-	ldp.LazarusSaturdayNextDate = NewDate(ldp.PaschaDateNext.Year(), 0,-8 )
+	ldp.GreatLentStartDate = ldp.PaschaDateThisYear.AddDate(0, -(7*7)+1, 0)
+	ldp.PalmSundayNextDate = ldp.PaschaDateNext.AddDate(0, 0, -7)
+	ldp.ThomasSundayDate = ldp.PaschaDateLast.AddDate(0, 0, 7) // NewDate(ldp.PaschaDateLast.Year(), 0,7 )
+	ldp.LazarusSaturdayNextDate = ldp.PaschaDateNext.AddDate(0, 0, -8)
 
 	ldp.SetDayOfSeason()
 	ldp.setDaysSinceStartOfLastTriodion()
@@ -324,28 +356,34 @@ func (ldp *LDP) SetLiturgicalPropertiesByDate(year int) {
 	ldp.setEothinonNumber()
 	ldp.setModeOfWeek()
 	ldp.setNbrDayOfMonth(ldp.TheDay.Day())
-	ldp.setNbrMonth(int(ldp.TheDay.Month()+1))
+	ldp.setNbrMonth(int(ldp.TheDay.Month()))
 
 	ldp.setDateFirstSundayAfterElevationOfCross()
 	ldp.setDaysSinceSundayAfterLastElevationOfCross()
-	ldp.SetDateStartLukanCycle()
+	ldp.ElevationOfCrossDateThisYear = NewDate(year, 9, 14)
+	ldp.setDateFirstSundayAfterElevationOfCross()
+	err := ldp.SetDateStartLukanCycle()
+	if err != nil {
+		logger.Println(err)
+	}
 	ldp.setDaysSinceStartLukanCycleLast()
-	ldp.ElevationOfCrossDateLast = NewDate(ldp.SundayAfterElevationOfCrossDateLast.Year(),
-		int(ldp.SundayAfterElevationOfCrossDateLast.Month()), 14)
+	ldp.setElevationOfCross(NewDate(ldp.SundayAfterElevationOfCrossDateLast.Year(), 9, 14))
 	ldp.SetNumberOfSundaysBeforeStartOfTriodionOnJan15()
 }
-
+func (ldp *LDP) setElevationOfCross(date time.Time) {
+	ldp.ElevationOfCrossDateLast = date
+}
 func (ldp *LDP) SetNumberOfSundaysBeforeStartOfTriodionOnJan15() {
-	jan15 := NewDate(ldp.TriodionStartDateThisYear.Year(),0,15)
+	jan15 := NewDate(ldp.TriodionStartDateThisYear.Year(), 0, 15)
 	diffMillis := DiffMillis(ldp.TriodionStartDateThisYear, jan15)
 	// Get difference in days, add 1 to be 1-index based instead of zero.
-	ldp.DaysUntilStartOfTriodion = int( diffMillis / (24*60*60*1000))
+	ldp.DaysUntilStartOfTriodion = int(diffMillis / (24 * 60 * 60 * 1000))
 	ldp.NumberOfSundaysBeforeStartOfTriodion = ldp.DaysUntilStartOfTriodion / 7
 }
 
 func (ldp *LDP) SetNumberOfSundaysBeforeStartOfTriodion() {
 	diffMillis := DiffMillis(ldp.TriodionStartDateThisYear, ldp.TheDay)
-	ldp.DaysUntilStartOfTriodion = int( diffMillis / (24*60*60*1000))
+	ldp.DaysUntilStartOfTriodion = int(diffMillis / (24 * 60 * 60 * 1000))
 	if ldp.DaysUntilStartOfTriodion < 0 {
 		ldp.DaysUntilStartOfTriodion = 0
 		ldp.NumberOfSundaysBeforeStartOfTriodion = 0
@@ -354,9 +392,13 @@ func (ldp *LDP) SetNumberOfSundaysBeforeStartOfTriodion() {
 	}
 }
 
-func (ldp *LDP) GetMonthOfSundayAfterElevationOfCross() int { return 0 }
+func (ldp *LDP) GetMonthOfSundayAfterElevationOfCross() int {
+	return int(ldp.SundayAfterElevationOfCrossDateLast.Month())
+}
 
-func (ldp *LDP) getDayOfSundayAfterElevationOfCross() int { return 0 }
+func (ldp *LDP) getDayOfSundayAfterElevationOfCross() int {
+	return int(ldp.SundayAfterElevationOfCrossDateLast.Day())
+}
 
 func (ldp *LDP) setDateLastTriodionStart() {
 	if ldp.TheDay.Before(ldp.TriodionStartDateThisYear) {
@@ -366,21 +408,67 @@ func (ldp *LDP) setDateLastTriodionStart() {
 	}
 }
 
-func (ldp *LDP) setDateFirstSundayAfterElevationOfCross() {
-	firstSundayAfterElevationThisYear := computeSundayAfterElevationOfCross(NewDate(ldp.TheDay.Year(), 8, 14))
-	firstSundayAfterElevationLastYear := computeSundayAfterElevationOfCross(NewDate(ldp.TheDay.Year()-1, 8, 14))
+func (ldp *LDP) setDateFirstSundayAfterElevationOfCross() error {
+	firstSundayAfterElevationThisYear, err := computeSundayAfterElevationOfCross(NewDate(ldp.TheDay.Year(),9,14))
+	firstSundayAfterElevationLastYear, err := computeSundayAfterElevationOfCross(NewDate(ldp.TheDay.Year()-1,9,14))
 	if ldp.TheDay.Before(firstSundayAfterElevationThisYear) {
 		ldp.SundayAfterElevationOfCrossDateLast = firstSundayAfterElevationLastYear
 	} else {
 		ldp.SundayAfterElevationOfCrossDateLast = firstSundayAfterElevationThisYear
 	}
+	return err
+}
+/*
+	{2006,9,14,time.Thursday},
+	{2007,9,14,time.Friday},
+	{2008,9,14,time.Sunday},
+	{2009,9,14,time.Monday},
+	{2010,9,14, time.Tuesday},
+	{2011,9,14, time.Wednesday},
+	{2012,9,14, time.Friday},
+	{2013,9,14, time.Saturday},
+	{2014,9,14, time.Sunday},
+	{2015,9,14, time.Monday},
+	{2016,9,14, time.Wednesday},
+	{2017,9,14, time.Thursday},
+	{2018,9,14, time.Friday},
+	{2019,9,14, time.Saturday},
+	{2020,9,14, time.Monday},
+	{2021,9,14, time.Tuesday},
+	{2022,9,14, time.Wednesday},
+	{2023,9,14, time.Thursday},
+	{2024,9,14, time.Saturday},
+	{2025,9,14, time.Sunday},
+ */
+func computeSundayAfterElevationOfCross(date time.Time) (time.Time, error) {
+	var dayOffset int
+	switch date.Weekday() {
+	case time.Sunday:
+		dayOffset = 7
+	case time.Monday:
+		dayOffset = 6
+	case time.Tuesday:
+		dayOffset = 5
+	case time.Wednesday:
+		dayOffset = 4
+	case time.Thursday:
+		dayOffset = 3
+	case time.Friday:
+		dayOffset = 2
+	case time.Saturday:
+		dayOffset = 1
+	}
+	sunday := NewDate(date.Year(), 9, 14+dayOffset)
+	var err error
+	if sunday.Weekday() != time.Sunday {
+		err = errors.New(fmt.Sprintf("expect weekday for %d/%d/%d to be Sunday, got %s ", date.Year(), 9, 14+dayOffset, sunday.Weekday()))
+	}
+	return sunday, err
 }
 
-func computeSundayAfterElevationOfCross(date time.Time) time.Time { return date }
-
-func (ldp *LDP) SetDateStartLukanCycle() {
-	firstSundayAfterElevationThisYear := computeSundayAfterElevationOfCross(NewDate(ldp.TheDay.Year(), 8, 14))
-	firstSundayAfterElevationLastYear := computeSundayAfterElevationOfCross(NewDate(ldp.TheDay.Year()-1, 8, 14))
+func (ldp *LDP) SetDateStartLukanCycle() error {
+	firstSundayAfterElevationThisYear, err := computeSundayAfterElevationOfCross(NewDate(ldp.TheDay.Year(), 9, 14))
+	firstSundayAfterElevationLastYear, err := computeSundayAfterElevationOfCross(NewDate(ldp.TheDay.Year()-1, 9, 14))
 	startLukanCycleThisYear := firstSundayAfterElevationThisYear.AddDate(0, 0, 1)
 	startLukanCycleLastYear := firstSundayAfterElevationLastYear.AddDate(0, 0, 1)
 	if ldp.TheDay.Before(startLukanCycleThisYear) {
@@ -388,10 +476,11 @@ func (ldp *LDP) SetDateStartLukanCycle() {
 	} else {
 		ldp.StartDateOfLukanCycleLast = startLukanCycleThisYear
 	}
+	return err
 }
 
 // pass in the year and receive the month and day of Pascha.
-func ComputeDayOfPascha(year int, isUserCalendarGregorian bool) time.Time {
+func ComputeDayOfPascha(year int, calendarType calendarTypes.CalendarType) time.Time {
 	var month, day, r19, r7, r4, n1, n2, n3, cent int
 	r19 = year % 19
 	r7 = year % 7
@@ -400,7 +489,7 @@ func ComputeDayOfPascha(year int, isUserCalendarGregorian bool) time.Time {
 	n1 = (19*r19 + 16) % 30
 	n2 = (2*r4 + 4*r7 + 6*n1) % 7
 	n3 = n1 + n2
-	if isUserCalendarGregorian {
+	if calendarType == calendarTypes.Gregorian {
 		// Then adjust day onto the Gregorian Calendar (only valid from 1583 onwards)
 		cent = year / 100
 		n3 += cent - cent/4 - 2
@@ -485,6 +574,7 @@ func (ldp *LDP) setModeOfWeek() {
 			} // note that it skips 7
 		}
 	}
+	ldp.NbrModeOfWeek = fmt.Sprintf("%d", ldp.ModeOfWeek)
 }
 func (ldp *LDP) setEothinonNumber() {
 	if ldp.IsSunday {
@@ -595,27 +685,6 @@ func (ldp *LDP) SetDayOfWeek() {
 	}
 }
 
-func (ldp *LDP) ComputeSundayAfterElevationOfCross(elevationOfCross time.Time) time.Time {
-	dayOffset := 0
-	switch elevationOfCross.Weekday() {
-	case time.Sunday:
-		dayOffset = 7
-	case time.Monday:
-		dayOffset = 6
-	case time.Tuesday:
-		dayOffset = 5
-	case time.Wednesday:
-		dayOffset = 4
-	case time.Thursday:
-		dayOffset = 3
-	case time.Friday:
-		dayOffset = 2
-	case time.Saturday:
-		dayOffset = 1
-	}
-	return NewDate(elevationOfCross.Year(), 8, 14+dayOffset)
-}
-
 // Returns the month as an integer, such that 1 = January
 func (ldp *LDP) getIntMonth() int { return int(ldp.TheDay.Month()) }
 
@@ -709,11 +778,12 @@ func (ldp *LDP) SetVariablesToDefaults() {
 	ldp.IsFriday = false
 	ldp.IsSaturday = false
 }
+
 // if pascha has not occurred this year, returns pascha for
 // the current year.  Otherwise, returns pascha for next year
 func (ldp *LDP) nextPaschaDate() time.Time {
-	thisYear := ComputeDayOfPascha(ldp.TheDay.Year(), true)
-	nextYear := ComputeDayOfPascha(ldp.TheDay.Year()+1, true);
+	thisYear := ComputeDayOfPascha(ldp.TheDay.Year(), ldp.CalendarType)
+	nextYear := ComputeDayOfPascha(ldp.TheDay.Year()+1, ldp.CalendarType)
 	if thisYear.After(ldp.TheDay) {
 		return thisYear
 	} else {
@@ -721,9 +791,9 @@ func (ldp *LDP) nextPaschaDate() time.Time {
 	}
 }
 func (ldp *LDP) lastPaschaDate() time.Time {
-	lastYear := ComputeDayOfPascha(ldp.TheDay.Year()-1, true)
-	thisYear := ComputeDayOfPascha(ldp.TheDay.Year(), true)
-	if thisYear.Before(ldp.TheDay)|| thisYear.Equal(ldp.TheDay) {
+	lastYear := ComputeDayOfPascha(ldp.TheDay.Year()-1, ldp.CalendarType)
+	thisYear := ComputeDayOfPascha(ldp.TheDay.Year(), ldp.CalendarType)
+	if thisYear.Before(ldp.TheDay) || thisYear.Equal(ldp.TheDay) {
 		return thisYear
 	} else {
 		return lastYear
@@ -739,4 +809,145 @@ func (ldp *LDP) daysInMonth(month int) int {
 		return 31
 	}
 }
-func (ldp *LDP) F() {}
+
+// RelativeTopic computes a new topic relative to liturgical day properties
+// If modeOverride > 0, it will be used instead of the mode of the week for a topic starting with "oc" (Octoechos)
+// If dayOverride > 0, it be used instead of the day of the liturgical date for a topic starting with "oc" (Octoechos)
+func (ldp *LDP) RelativeTopic(topic string, modeOverride, dayOverride int) string {
+	sb := strings.Builder{}
+	eoNbr := ldp.EothinonNumber
+	var bookAcronymn string
+	parts := strings.Split(topic, ".")
+	if parts[0] == "le" {
+		bookAcronymn = parts[0] + "." + parts[1] + "." + parts[2]
+	} else {
+		bookAcronymn = parts[0]
+	}
+	sb.WriteString(bookAcronymn)
+	sb.WriteString(".")
+
+	switch bookAcronymn {
+	case "da":
+		sb.WriteString("d")
+		sb.WriteString(ldp.NbrDayOfWeek)
+	case "eo": // Eothinon - hymns
+		sb.WriteString("e")
+		sb.WriteString(fmt.Sprintf("%02d", eoNbr))
+	case "eu": // Euchologion
+	case "he": // Heirmologion
+	case "ho": // Horologion
+	case "ka": // Katavasias
+	case "le.go.eo": // Eothinon - lectionary
+		sb.WriteString("w")
+		sb.WriteString(fmt.Sprintf("%02d", eoNbr))
+	case "le.go.lu": // Lectionary - Gospel - Luke
+		sb.WriteString("d")
+		sb.WriteString(fmt.Sprintf("%03d", ldp.DaysSinceStartLastLukanCycle))
+	// Movable Day Cylce - Lectionary (Gospel and Epistle), Triodion, Pentecostarion
+	case "le.go.mc", "le.ep.mc", "le.pr.tr", "pe", "tr":
+		sb.WriteString("d")
+		sb.WriteString(fmt.Sprintf("%03d", ldp.DaysSinceStartOfTriodion))
+	// Service Month and Day - Lectionary (Gospel and Epistle), Menaion, Octoechos, Synxarion, Typikon
+	case "le.go.me", "le.ep.me", "me", "sy", "ty":
+		sb.WriteString("m")
+		sb.WriteString(ldp.NbrMonth)
+		sb.WriteString(".d")
+		sb.WriteString(ldp.NbrDayOfMonth)
+	case "oc":
+		sb.WriteString("m")
+		if modeOverride > 0 && modeOverride < 9 {
+			sb.WriteString(strconv.Itoa(modeOverride))
+		} else {
+			sb.WriteString(ldp.NbrModeOfWeek)
+		}
+		sb.WriteString(".d")
+		if modeOverride > 0 && modeOverride < 9 {
+			sb.WriteString(strconv.Itoa(dayOverride))
+		} else {
+			sb.WriteString(ldp.NbrDayOfWeek)
+		}
+	}
+	return sb.String()
+}
+func FormattedDate(date time.Time) string {
+	return fmt.Sprintf("%d-%d-%d",date.Month(), date.Day(),date.Year())
+}
+func (ldp *LDP) getWeekAndDayOfLukanCycle() string {
+	week := ldp.getWeekOfLukanCycle()
+	return fmt.Sprintf("%s of the %d%s week of Luke", ldp.DayOfWeek, week, getNumberDegree(week))
+}
+func (ldp *LDP) IsNativityOfChrist() bool {
+	if ldp.CalendarType == calendarTypes.Gregorian {
+		return ldp.TheDay.Month() == 12 && ldp.TheDay.Day() == 25
+	} else {
+		return ldp.TheDay.Month() == 1 && ldp.TheDay.Day() == 7
+	}
+}
+func (ldp *LDP) DateNativityOfChrist() time.Time {
+	if ldp.CalendarType == calendarTypes.Gregorian {
+		return NewDate(ldp.TheDay.Year(),12,25)
+	} else {
+		return NewDate(ldp.TheDay.Year(),1,7)
+	}
+}
+func getNumberDegree(i int) string {
+	nbr := strconv.Itoa(i)
+	if strings.HasSuffix(nbr,"1") {
+		return "st"
+	} else if strings.HasSuffix(nbr, "2") {
+		return "nd"
+	} else if strings.HasSuffix(nbr, "3") {
+		return "rd"
+	} else {
+		return "th"
+	}
+}
+// NewElevationData is used for testing
+func (ldp *LDP) NewElevationData() ElevationData {
+	var data ElevationData
+	data.LiturgicalYear = ldp.TheDay.Year()
+	data.LiturgicalMonth = int(ldp.TheDay.Month())
+	data.LiturgicalDay = ldp.TheDay.Day()
+	data.ElevationYear = ldp.ElevationOfCrossDateLast.Year()
+	data.ElevationMonth = int(ldp.ElevationOfCrossDateLast.Month())
+	data.ElevationDay = ldp.ElevationOfCrossDateLast.Day()
+	data.SundayAfterYear = ldp.SundayAfterElevationOfCrossDateLast.Year()
+	data.SundayAfterMonth = int(ldp.SundayAfterElevationOfCrossDateLast.Month())
+	data.SundayAfterDay = ldp.SundayAfterElevationOfCrossDateLast.Day()
+	data.LukanCycleStartYear = ldp.StartDateOfLukanCycleLast.Year()
+	data.LukanCycleStartMonth = int(ldp.StartDateOfLukanCycleLast.Month())
+	data.LukanCycleStartDay = ldp.StartDateOfLukanCycleLast.Day()
+	data.ElapsedDays = ldp.DaysSinceSundayAfterLastElevationOfCross
+	data.LukanCycleDayNbr = ldp.DaysSinceStartLastLukanCycle
+	data.LukanCycleDayName = ldp.DayOfWeek
+	data.LukanCycleWeekNbr = ldp.getWeekOfLukanCycle()
+	return data
+}
+type ElevationData struct {
+	LiturgicalYear, LiturgicalMonth, LiturgicalDay int
+	ElevationYear, ElevationMonth, ElevationDay int
+	SundayAfterYear, SundayAfterMonth, SundayAfterDay int
+	LukanCycleStartYear, LukanCycleStartMonth, LukanCycleStartDay int
+	ElapsedDays int
+	LukanCycleDayNbr int
+	LukanCycleDayName string
+	LukanCycleWeekNbr int
+}
+func (e *ElevationData) String() string {
+	sb := strings.Builder{}
+	sb.WriteString("Liturgical date: ")
+	sb.WriteString(fmt.Sprintf("%d/%d/%d",e.LiturgicalMonth, e.LiturgicalDay, e.LiturgicalYear))
+	sb.WriteString(" Elevation: ")
+	sb.WriteString(fmt.Sprintf("%d/%d/%d",e.ElevationMonth, e.ElevationDay, e.ElevationYear))
+	sb.WriteString(" Sunday After: ")
+	sb.WriteString(fmt.Sprintf("%d/%d/%d",e.SundayAfterMonth, e.SundayAfterDay, e.SundayAfterYear))
+	sb.WriteString(" Elapsed days: ")
+	sb.WriteString(fmt.Sprintf("%d",e.ElapsedDays))
+	sb.WriteString(" Lukan Cycle start: ")
+	sb.WriteString(fmt.Sprintf("%d/%d/%d",e.LukanCycleStartYear, e.LukanCycleStartMonth, e.LukanCycleStartDay))
+	sb.WriteString(" Lukan Cycle day: ")
+	sb.WriteString(fmt.Sprintf("%d",e.LukanCycleDayNbr))
+	sb.WriteString(" ")
+	sb.WriteString(fmt.Sprintf("%s of the %d%s week of Luke", e.LukanCycleDayName, e.LukanCycleWeekNbr, getNumberDegree(e.LukanCycleWeekNbr)))
+	return sb.String()
+}

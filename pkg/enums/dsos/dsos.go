@@ -1,4 +1,7 @@
-//go:generate stringer -type=DayOfSeason
+//go:generate enumer -type=DayOfSeason -json -text -yaml -sql
+// 1) go get github.com/alvaroloes/enumer
+// 2) in the enum subfolder for this enum: go generate
+
 // Package dsos provides an enum of Liturgical Days of the Season (i.e. the Triodion)
 package dsos
 

@@ -367,7 +367,7 @@ if you are in a tag line, when you hit eol,
 Note the a ...string is actually a []string. So, when
   you call the generic function have the topic-keys in a string slice
 
-Errors
+GetErrors
 - missing topic or key
 - topic-key does not exist in gr_gr_cog
 - unknown tag

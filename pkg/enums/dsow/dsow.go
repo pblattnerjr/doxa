@@ -1,4 +1,7 @@
-//go:generate stringer -type=DOW
+//go:generate enumer -type=DOW -json -text -yaml -sql
+// 1) go get github.com/alvaroloes/enumer
+// 2) in the enum subfolder for this enum: go generate
+
 // Package dsows provides an enum of the days of the week
 package dsow
 

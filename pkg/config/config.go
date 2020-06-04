@@ -124,7 +124,6 @@ github.repos.ares:
 - https://github.com/AGES-Initiatives/ages-alwb-library-en-us-andronache.git
 - https://github.com/AGES-Initiatives/ages-alwb-library-en-us-barrett.git
 - https://github.com/AGES-Initiatives/ages-alwb-library-en-us-boyer.git
-- https://github.com/AGES-Initiatives/ages-alwb-library-en-us-constantinides.git
 - https://github.com/AGES-Initiatives/ages-alwb-library-en-us-duvall.git
 - https://github.com/AGES-Initiatives/ages-alwb-library-en-us-houpos.git
 - https://github.com/AGES-Initiatives/ages-alwb-library-en-us-repass.git

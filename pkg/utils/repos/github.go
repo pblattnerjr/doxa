@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/go-github/github"
-	"github.com/liturgiko/doxa/pkg/utils/ares"
+	"github.com/liturgiko/doxa/pkg/ages/ares"
 	"golang.org/x/oauth2"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"

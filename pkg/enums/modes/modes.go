@@ -1,4 +1,7 @@
-//go:generate stringer -type=Mode
+//go:generate enumer -type=Mode -json -text -yaml -sql
+// 1) go get github.com/alvaroloes/enumer
+// 2) in the enum subfolder for this enum: go generate
+
 // Package modes provides an enum of Liturgical Modes (aka Tones)
 package modes
 

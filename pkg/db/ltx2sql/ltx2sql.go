@@ -473,6 +473,9 @@ func (m *LtxMapper) CountTopics(library string) (int, error) {
 func (m *LtxMapper) CountKeys(library, topic, key string) (int, error) {
 	var count int
 	var sb strings.Builder
+	if len(library) == 0 {
+		library = "%"
+	}
 	if len(key) > 0 {
 		sb.WriteString(library)
 		sb.WriteString(IDDelimiter)
@@ -517,6 +520,11 @@ func (m *LtxMapper) CaseSensitiveLike(on bool) error {
 func (m *LtxMapper) Exists(library, topic, key string) bool {
 	c, _ := m.CountKeys(library, topic, key)
 	return c == 1
+}
+// Verifies a record exists in the database for the specified topic and key
+func (m *LtxMapper) ExistsTK(topic, key string) bool {
+	c, _ := m.CountKeys("", topic, key)
+	return c > 0
 }
 // nnp and nwp properties are set correctly.
 func NewLtx(library, topic, key, value, comment, redirect string) *models.Ltx {
