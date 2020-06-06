@@ -3,13 +3,30 @@ package template
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/liturgiko/doxa/pkg/enums/idTypes"
 	"github.com/liturgiko/doxa/pkg/enums/statuses"
 	"github.com/liturgiko/doxa/pkg/enums/templateTypes"
 	"testing"
+	"time"
 )
 
+func TestParagraph(t *testing.T) {
+	var p Paragraph
+	var s1 Span
+	s1.AddNid("Literal Text")
+	s1.AddSid("actors/Priest")
+	s1.AddRid("oc.*/ocVE.ApolTheotokionVM.text")
+	p.AddSpan(s1)
+	p.AddVersion()
+	j, err := json.MarshalIndent(p, "", " ")
+	if err != nil {
+		t.Error(err.Error())
+	}
+	fmt.Println(string(j))
+
+}
 func TestALT(t *testing.T) {
-	alt := new(ALT)
+	alt := new(ATEM)
 	alt.ID = "x/y"
 	alt.Type = templateTypes.Service
 	alt.Status = statuses.Draft
@@ -20,18 +37,22 @@ func TestALT(t *testing.T) {
 	pdf.PageNbr = 1
 	alt.PDF = pdf
 	headerEven := NewHeaderEven()
-	headerEven.AddCenterDirective(*NewDateDirective(".it"))
+	headerEven.AddLeftDirective(NewLiteralDirective(".it","This is a test"))
+	headerEven.AddCenterDirective(NewDateDirective(".it", time.Now()))
 	pdf.AddHeader(*headerEven)
 	headerOdd := NewHeaderOdd()
-	headerOdd.AddCenterDirective(*NewPageNbrDirective(".it"))
+	lookupDirective := NewLookupDirective(1)
+	err := lookupDirective.AddLookupTK(idTypes.SID, "actor", "actors/priest")
+	headerOdd.AddRightDirective(lookupDirective)
+	headerOdd.AddCenterDirective(NewPageNbrDirective(".it"))
 	pdf.AddHeader(*headerOdd)
 	footerEven := NewFooterEven()
-	footerEven.AddCenterDirective(*NewDateDirective(".it"))
+	footerEven.AddCenterDirective(NewDateDirective(".it", time.Now()))
 	pdf.AddFooter(*footerEven)
 	footerOdd := NewFooterOdd()
-	footerOdd.AddCenterDirective(*NewPageNbrDirective(".it"))
+	footerOdd.AddCenterDirective(NewPageNbrDirective(".it"))
 	pdf.AddFooter(*footerOdd)
-	j, err := json.MarshalIndent(alt, "", "  m")
+	j, err := json.MarshalIndent(alt, "", " ")
 	if err != nil {
 		t.Error(err.Error())
 	}

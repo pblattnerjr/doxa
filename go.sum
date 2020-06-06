@@ -263,6 +263,12 @@ gitlab.com/ocmc/liturgiko/lml-go v0.0.30 h1:Nli6puHbWBp2Qgq85b5mjHbSkNn2cIgFTdjG
 gitlab.com/ocmc/liturgiko/lml-go v0.0.30/go.mod h1:QTE+Inf+TZ4RPQwmjqnD4oIDd8r7Ose5d2egCkFngwU=
 gitlab.com/ocmc/liturgiko/lml-go v0.0.31 h1:13JunEq4/jcH5NeitxTwpJ4xtTe64iA89lsB+8zWVYs=
 gitlab.com/ocmc/liturgiko/lml-go v0.0.31/go.mod h1:QTE+Inf+TZ4RPQwmjqnD4oIDd8r7Ose5d2egCkFngwU=
+gitlab.com/ocmc/liturgiko/lml-go v0.0.32 h1:fnwzFIj0GcxYnGO5DR0B6AoZFBNQpXZhal7niNXDK84=
+gitlab.com/ocmc/liturgiko/lml-go v0.0.32/go.mod h1:QTE+Inf+TZ4RPQwmjqnD4oIDd8r7Ose5d2egCkFngwU=
+gitlab.com/ocmc/liturgiko/lml-go v0.0.33 h1:yiFMOVEmtLeWnsvoAKjX55vICaggOIffvlnPtpVuT/M=
+gitlab.com/ocmc/liturgiko/lml-go v0.0.33/go.mod h1:QTE+Inf+TZ4RPQwmjqnD4oIDd8r7Ose5d2egCkFngwU=
+gitlab.com/ocmc/liturgiko/lml-go v0.0.34 h1:zsjXIniVXwnnG4xrs3GH7XpAKXfv47POfQjY89+rpHg=
+gitlab.com/ocmc/liturgiko/lml-go v0.0.34/go.mod h1:QTE+Inf+TZ4RPQwmjqnD4oIDd8r7Ose5d2egCkFngwU=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.opencensus.io v0.20.1/go.mod h1:6WKK9ahsWS3RSO+PY9ZHZUfv2irvY6gN279GOPZjmmk=
 go.uber.org/atomic v1.4.0/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=

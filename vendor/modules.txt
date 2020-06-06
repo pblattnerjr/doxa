@@ -115,7 +115,7 @@ github.com/src-d/gcfg/types
 github.com/xanzy/go-gitlab
 # github.com/xanzy/ssh-agent v0.2.1
 github.com/xanzy/ssh-agent
-# gitlab.com/ocmc/liturgiko/lml-go v0.0.31
+# gitlab.com/ocmc/liturgiko/lml-go v0.0.34
 ## explicit
 gitlab.com/ocmc/liturgiko/lml-go/parser
 # golang.org/x/crypto v0.0.0-20190829043050-9756ffdc2472

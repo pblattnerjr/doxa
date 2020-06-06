@@ -29,6 +29,9 @@ type LMLListener interface {
 	// EnterPara is called when entering the para production.
 	EnterPara(c *ParaContext)
 
+	// EnterPspan is called when entering the pspan production.
+	EnterPspan(c *PspanContext)
+
 	// EnterSpan is called when entering the span production.
 	EnterSpan(c *SpanContext)
 
@@ -172,6 +175,9 @@ type LMLListener interface {
 
 	// ExitPara is called when exiting the para production.
 	ExitPara(c *ParaContext)
+
+	// ExitPspan is called when exiting the pspan production.
+	ExitPspan(c *PspanContext)
 
 	// ExitSpan is called when exiting the span production.
 	ExitSpan(c *SpanContext)

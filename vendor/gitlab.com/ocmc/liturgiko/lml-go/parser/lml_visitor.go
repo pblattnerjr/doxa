@@ -29,6 +29,9 @@ type LMLVisitor interface {
 	// Visit a parse tree produced by LMLParser#para.
 	VisitPara(ctx *ParaContext) interface{}
 
+	// Visit a parse tree produced by LMLParser#pspan.
+	VisitPspan(ctx *PspanContext) interface{}
+
 	// Visit a parse tree produced by LMLParser#span.
 	VisitSpan(ctx *SpanContext) interface{}
 

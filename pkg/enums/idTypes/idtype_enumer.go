@@ -9,9 +9,9 @@ import (
 	"fmt"
 )
 
-const _IDTypeName = "NIDRIDSID"
+const _IDTypeName = "NANIDRIDSID"
 
-var _IDTypeIndex = [...]uint8{0, 3, 6, 9}
+var _IDTypeIndex = [...]uint8{0, 2, 5, 8, 11}
 
 func (i IDType) String() string {
 	if i < 0 || i >= IDType(len(_IDTypeIndex)-1) {
@@ -20,12 +20,13 @@ func (i IDType) String() string {
 	return _IDTypeName[_IDTypeIndex[i]:_IDTypeIndex[i+1]]
 }
 
-var _IDTypeValues = []IDType{0, 1, 2}
+var _IDTypeValues = []IDType{0, 1, 2, 3}
 
 var _IDTypeNameToValueMap = map[string]IDType{
-	_IDTypeName[0:3]: 0,
-	_IDTypeName[3:6]: 1,
-	_IDTypeName[6:9]: 2,
+	_IDTypeName[0:2]:  0,
+	_IDTypeName[2:5]:  1,
+	_IDTypeName[5:8]:  2,
+	_IDTypeName[8:11]: 3,
 }
 
 // IDTypeString retrieves an enum value from the enum constants string name.

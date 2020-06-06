@@ -8,7 +8,8 @@ package idTypes
 
 type IDType int
 const (
-	NID IDType = iota
+	NA IDType = iota
+	NID
 	RID
 	SID
 )

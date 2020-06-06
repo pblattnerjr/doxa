@@ -1,3 +1,4 @@
+// Package template provides an Abstract Template struct which contains all the information needed for a generator (e.g. an HTML generator or a PDF generator), when combined with the user requested libraries.
 package template
 
 import (
@@ -10,37 +11,55 @@ import (
 	"time"
 )
 
-// Abstract Liturgical Template
-type ALT struct {
-	ID string
-	Type templateTypes.TemplateType
-	Status statuses.Status
-	Calendar calendarTypes.CalendarType
+/*
+ATEM is an Abstract Template.
+ID is the identifier for the template and should match a corresponding path in the file system or an ID in a database.
+Type is block, book, or service.
+Status values are na, draft, review, or final.
+Calendar indicates whether the Gregorian or Julian calendar is to be used with this template.
+Month, Day, Year are used when the Type = service.
+HtmlCss is the file path or database ID for the css file to be used for the template.
+PDF contains information for creating PDF files, e.g. title, Header and Footer information, and the CSS to use.
+LDP holds the liturgical day properties for the specified Year, Month, and Day.
+Paragraphs holds an array of Paragraph. The information in a paragraph should be used by a generator of HTML or a PDF (or anything else that has rows), the information in a Paragraph is used 1..n times depending on how many libraries have been requested by the user. Each table row in an HTML document or PDF file will have a cell for each requested library, and content as specified by the paragraph.
+ */
+type ATEM struct {
+	ID               string
+	Type             templateTypes.TemplateType
+	Status           statuses.Status
+	Calendar         calendarTypes.CalendarType
 	Month, Day, Year int
-	HtmlCss string
-	PDF *PDF
-	LDP ldp.LDP
+	HtmlCss          string
+	PDF              *PDF
+	LDP              ldp.LDP
+	Paragraphs       []*Paragraph
 }
-// Set Liturgical Day Properties for specified month, day, and year
-func (a *ALT) SetLDPYMD(month, day, year int, calendarType calendarTypes.CalendarType) error {
+// SetLDPYMD sets the Liturgical Day Properties to the supplied month, day, and year
+func (a *ATEM) SetLDPYMD(month, day, year int, calendarType calendarTypes.CalendarType) error {
 	l, err := ldp.NewLDPYMD(year, month, day, calendarType)
 	if err != nil {
 		return err
 	}
 	a.LDP = l
+	a.Year = year
+	a.Month = month
+	a.Day = day
 	return nil
 }
-// SetLDP for current year, and supplied month and day
-func (a *ALT) SetLDPMD(month, day int, calendarType calendarTypes.CalendarType) error {
+// SetLDPMD sets the Liturgical Day Properties to current year, and supplied month and day
+func (a *ATEM) SetLDPMD(month, day int, calendarType calendarTypes.CalendarType) error {
 	l, err := ldp.NewLDPMD(month, day, calendarType)
 	if err != nil {
 		return err
 	}
 	a.LDP = l
+	a.Year = l.TheDay.Year()
+	a.Month = month
+	a.Day = day
 	return nil
 }
-// SetLDP for template year, month, and day
-func (a *ALT) SetLDP() error {
+// SetLDP sets the Liturgical Day Properties to the year, month, and day in the template
+func (a *ATEM) SetLDP() error {
 	var l ldp.LDP
 	var err error
 	if a.Year == 0 {
@@ -55,9 +74,14 @@ func (a *ALT) SetLDP() error {
 		}
 	}
 	a.LDP = l
+	a.Year = l.TheDay.Year()
+	a.Month = int(l.TheDay.Month())
+	a.Day = l.TheDay.Day()
 	return nil
 }
-
+func (a *ATEM) AddParagraph(p Paragraph) {
+	a.Paragraphs = append(a.Paragraphs, &p)
+}
 type PDF struct {
 	CSS string
 	PageNbr int
@@ -89,21 +113,20 @@ const (
 )
 // Header indicates parity (whether it is for even or odd pages or both)
 // and the content of each of three slots: left, center, right.
-// A slot can be empty.  To determine whether a slot has content, call the functions
-// HasLeftSlot, HasCenterSlot, and HasRightSlot.
+// A slot can be empty.  To determine whether a slot has content, call the functions HasLeftSlot, HasCenterSlot, and HasRightSlot.
 type Header struct {
 	Parity Parity
 	Left Slot
 	Center Slot
 	Right Slot
 }
-func (h *Header) AddLeftDirective(directive PDFDirective) {
+func (h *Header) AddLeftDirective(directive PDFDecorator) {
 	h.Left.Directives = append(h.Left.Directives, directive)
 }
-func (h *Header) AddCenterDirective(directive PDFDirective) {
+func (h *Header) AddCenterDirective(directive PDFDecorator) {
 	h.Center.Directives = append(h.Center.Directives, directive)
 }
-func (h *Header) AddRightDirective(directive PDFDirective) {
+func (h *Header) AddRightDirective(directive PDFDecorator) {
 	h.Right.Directives = append(h.Right.Directives, directive)
 }
 func (h *Header) HasLeftSlot() bool {
@@ -137,15 +160,14 @@ func NewHeaderOdd() *Header {
 }
 // Slot contains information about a left, center, or right slot of a header or footer
 type Slot struct {
-	Directives []PDFDirective
+	Directives []PDFDecorator
 }
-func (s *Slot) AddDirective(directive PDFDirective) {
+func (s *Slot) AddDirective(directive PDFDecorator) {
 	s.Directives = append(s.Directives, directive)
 }
 // Footer indicates parity (whether it is for even or odd pages or both)
 // and the content of each of three slots: left, center, right.
-// A slot can be empty.  To determine whether a slot has content, call the functions
-// HasLeftSlot, HasCenterSlot, and HasRightSlot.
+// A slot can be empty.  To determine whether a slot has content, call the functions HasLeftSlot, HasCenterSlot, and HasRightSlot.
 type Footer struct {
 	Parity Parity
 	Left Slot
@@ -172,13 +194,13 @@ func NewFooterOdd() *Footer {
 	footer.Parity = Odd
 	return footer
 }
-func (f *Footer) AddLeftDirective(directive PDFDirective) {
+func (f *Footer) AddLeftDirective(directive PDFDecorator) {
 	f.Left.Directives = append(f.Left.Directives, directive)
 }
-func (f *Footer) AddCenterDirective(directive PDFDirective) {
+func (f *Footer) AddCenterDirective(directive PDFDecorator) {
 	f.Center.Directives = append(f.Center.Directives, directive)
 }
-func (f *Footer) AddRightDirective(directive PDFDirective) {
+func (f *Footer) AddRightDirective(directive PDFDecorator) {
 	f.Right.Directives = append(f.Right.Directives, directive)
 }
 func (f *Footer) HasLeftSlot() bool {
@@ -190,24 +212,62 @@ func (f *Footer) HasCenterSlot() bool {
 func (f *Footer) HasRightSlot() bool {
 	return len(f.Right.Directives) > 0
 }
+type PDFDecorator interface {
+	DirType() directiveTypes.DirectiveType
+	DirClass() string
+}
+type PDFDateDecorator interface {
+	PDFDecorator
+	Value() time.Time
+}
+type PDFLiteralDecorator interface {
+	PDFDecorator
+	Value () string
+}
+type PDFLookupDecorator interface {
+	PDFDecorator
+	Value () Lookup
+}
 // PDFDirective indicates what is to be inserted into a header or footer.
-// The Class string holds the span CSS class to be applied.
-// If the type = InsertDate, then the Time property is used.
-// If the type = InsertLookup, then the Lookup property is used.
-// If the type = InsertLiteral, then the Literal property is used.
-// TODO: figure out a way to ensure the proper properties are used based on the Type
+// Type indicates the type of the directive.
+// The Class string holds the name of the span CSS class to be applied.
+//
 type PDFDirective struct {
 	Type    directiveTypes.DirectiveType
 	Class   string
-	Lookup  Lookup
-	Literal string
-	Time    time.Time
 }
-func NewDateDirective(class string, time time.Time) *PDFDirective {
-	var dir = new(PDFDirective)
+func (p *PDFDirective) DirType() directiveTypes.DirectiveType {
+	return p.Type
+}
+func (p *PDFDirective) DirClass() string {
+	return p.Class
+}
+type PDFDateDirective struct {
+	PDFDirective
+	Date time.Time
+}
+func (p *PDFDateDirective) Value() time.Time {
+	return p.Date
+}
+type PDFLookupDirective struct {
+	PDFDirective
+	Lookup Lookup
+}
+func (p *PDFLookupDirective) Value() Lookup {
+	return p.Lookup
+}
+type PDFLiteralDirective struct {
+	PDFDirective
+	Literal string
+}
+func (p *PDFLiteralDirective) Value() string {
+	return p.Literal
+}
+func NewDateDirective(class string, time time.Time) *PDFDateDirective {
+	var dir = new(PDFDateDirective)
 	dir.Type = directiveTypes.InsertDate
 	dir.Class = class
-	dir.Time = time
+	dir.Date = time
 	return dir
 }
 func NewPageNbrDirective(class string) *PDFDirective {
@@ -216,28 +276,28 @@ func NewPageNbrDirective(class string) *PDFDirective {
 	dir.Class = class
 	return dir
 }
-func NewLiteralDirective(class, literal string) *PDFDirective {
-	var dir = new(PDFDirective)
+func NewLiteralDirective(class, literal string) *PDFLiteralDirective {
+	var dir = new(PDFLiteralDirective)
 	dir.Type = directiveTypes.InsertLiteral
 	dir.Class = class
 	dir.Literal = literal
 	return dir
 }
-func NewLookupDirective(library int) *PDFDirective {
-	var dir = new(PDFDirective)
+func NewLookupDirective(library int) *PDFLookupDirective {
+	var dir = new(PDFLookupDirective)
 	dir.Type = directiveTypes.InsertLookup
 	var lookup = new(Lookup)
 	lookup.Library = library
 	dir.Lookup = *lookup
 	return dir
 }
-func (d *PDFDirective) AddLookupTK(idType idTypes.IDType, class, topicKey string) error {
+func (p *PDFLookupDirective) AddLookupTK(idType idTypes.IDType, class, topicKey string) error {
 	var err error
 	var lookupID = new(LookupTopicKey)
 	lookupID.Type = idType
 	lookupID.Class = class
 	lookupID.TopicKey = topicKey
-	d.Lookup.TopicKeys = append(d.Lookup.TopicKeys,*lookupID)
+	p.Lookup.TopicKeys = append(p.Lookup.TopicKeys,*lookupID)
 	return err
 }
 // Lookup provides information to do a database lookup to insert the result in a header/footer.
@@ -253,45 +313,131 @@ type LookupTopicKey struct {
 	OverrideDay int
 	OverrideMode int
 }
+type Spanner interface {
+	CssClass() string
+}
+type TextSpanner interface {
+	Spanner
+	TKType() idTypes.IDType
+}
+type TextLiteralSpanner interface {
+	TextSpanner
+}
+type TextRidSpanner interface {
+	TextSpanner
+}
+type TextSidSpanner interface {
+	TextSpanner
+}
 /*
-TopicKeySpan contains information for the formatting of a span that will contain the value from a database read using an ID.
-Class is the CSS classname
-Type is the type of Topic-Key (NID, SID, RID).  Technically NID is a literal, with no database lookup, but included for symmetry.
-DataKey initially holds just the topic/key, but during generation becomes library/topic/key
-Value is set during generation using the value from a database read
-OverrideDay is used for a RID. Zero = no override. Otherwise is a value from 1-7, representing the days of the week
-OverrideMode is used for a RID. Zero = no override.  Otherwise is a value from 1-8, representing the liturgical modes
+TextSpan contains information for the formatting of a span that will contain the value from a database read using an ID, or contains a literal value.
+Class provides the CSS classname
+Type indicates whether it is a nid, sid, or rid.
+TextSpan
  */
-type TopicKeySpan struct {
-	Class string
+type TextSpan struct {
+	Span
 	Type idTypes.IDType
-	DataKey string
+}
+func (tks *TextSpan) TKType() idTypes.IDType {
+	return tks.Type
+}
+type LiteralSpan struct {
+	TextSpan
 	Value string
-	OverrideDay int
+}
+// SidTkSpan is used by the generator to use a specific ID for a library/topic/key database read.
+// The library value is added by the generator.
+type SidTkSpan struct {
+	TextSpan
+	TopicKey string
+}
+/*
+RidTkSpan is used by the generator to compute a relative topic for a library/topic/key database read.
+The library value is added by the generator.
+OverrideDay is used for a RID. Zero = no override. Otherwise it is a value from 1-7, representing the days of the week
+OverrideMode is used for a RID. Zero = no override.  Otherwise it is a value from 1-8, representing the liturgical modes
+*/
+type RidTkSpan struct {
+	TextSpan
+	TopicKey     string
+	OverrideDay  int
 	OverrideMode int
 }
-// AddLibrary prefixes the topic/key with the library so it is complete for a database lookup
-func (tks *TopicKeySpan) AddLibrary(library string) {
-	tks.DataKey = library + tks.DataKey
+// Create ID returns a database ID for the ltx table by prefixing the topic/key with the library so it is complete for a database lookup.
+func (r *RidTkSpan) CreateID(library string) string {
+	return library + r.TopicKey
 }
+func (r *RidTkSpan) HasDayOverride() bool {
+	return r.OverrideDay > 0
+}
+func (r *RidTkSpan) HasModeOverride() bool {
+	return r.OverrideMode > 0
+}
+
+// Span contains the information for an inline text.
+// Class is the CSS Class name.
+// TopicKeys during generation are prefixed with a library and used to obtain a value from the ltx table in a database.
+// For example, actor/Priest -> gr_gr_cog/actor/Priest or en_us_dedes/actors/Priest, etc.
+// ChildSpans are spans embedded within a span.
+// TextSpans and ChildSpans are mutually exclusive.
+// TextSpans can be thought of as the terminal nodes of a span tree.
 type Span struct {
-	Class string
-	TopicKeys []TopicKeySpan
+	Class      string
+	Type       idTypes.IDType
+	// if Type = nid has:
+	Literal string
+	// if Type = sid or rid has:
+	TopicKey string
+	// if Type = rid can have:
+	ModeOverride, DayOverride int
 	ChildSpans []Span
 }
-// AddTopic will create a TopicKeySpan and set the class to "kvp", and the DataKey to the topic/key.
-// At generation time, the DataKey will be prefixed with the library so that an inspection of the HTML (for example) shows the ID used to get the value.
+func (s *Span) HasChildSpans() bool {
+	return len(s.ChildSpans) > 0
+}
+// NewNid returns a Span with Type = NID, class "nid", and Literal set to the value parameter.
+// AddNid returns an error if the span has ChildSpans.
+// TextSpans and ChildSpans are mutually exclusive.
+func NewNid(value string) *Span {
+	s := new(Span)
+	s.Type = idTypes.NID
+	s.Class = "nid"
+	s.Literal = value
+	return s
+}
+// NewRid returns a Span with Type = RID, Class = "kvp", and TopicKey set to the topic/key parameter.
+// At generation time, the TopicKey will be prefixed with the library so that an inspection of the HTML (for example) shows the ID used to get the value.
 // The value will also be added at generation time.
-func (s *Span) AddTopicKey(idType idTypes.IDType, topicKey string) {
-	tks := new(TopicKeySpan)
-	tks.Type = idType
-	tks.Class = "kvp"
-	tks.DataKey = topicKey
-	s.TopicKeys = append(s.TopicKeys,*tks)
+func NewRid(topicKey string, modeOverride, dayOverride int) *Span {
+	s := new(Span)
+	s.Type = idTypes.RID
+	s.Class = "kvp"
+	s.TopicKey = topicKey
+	s.ModeOverride = modeOverride
+	s.DayOverride = dayOverride
+	return s
 }
-func (s *Span) AddChildSpan(span Span) {
+// AddSid will create a SidTkSpan and set the class to "kvp", and the TopicKey to the topic/key parameter.
+// At generation time, the TopicKey will be prefixed with the library so that an inspection of the HTML (for example) shows the ID used to get the value.
+// The value will also be added at generation time.
+func NewSid(topicKey string) *Span {
+	s := new(Span)
+	s.Type = idTypes.SID
+	s.Class = "kvp"
+	s.TopicKey = topicKey
+	return s
+}
+// AddChildSpan adds a span as a child, and returns an error if the span has TopicKeys.
+// TopicKeys and ChildSpans are mutually exclusive.
+func (s *Span) AddChildSpan(span Span) error {
 	s.ChildSpans = append(s.ChildSpans,span)
+	return nil
 }
+// Paragraph holds information that can be used to create the contents of a cell of a table row.
+// Class is the CSS class for the paragraph.
+// Spans contain the information for creating inline texts within the paragraph.
+// Version contains information to create a span that will contain an acronym for the library used to retrieve the text values.
 type Paragraph struct {
 	Class string
 	Spans[]Span
@@ -300,23 +446,13 @@ type Paragraph struct {
 func (p *Paragraph) AddSpan(span Span) {
 	p.Spans = append(p.Spans,span)
 }
-// AddVersion creates a TopicKeySpan whose class = "versiondesignation" and an inner sid TopicKeySpan whose topic/key is "properties/version.designation"
+// AddVersion creates a TextSpan whose class = "versiondesignation" and an inner sid TextSpan whose topic/key is "properties/version.designation"
 // The version will display as an acronym for the library used during generation.
 // For example, en_us_dedes will show [SD] as the version.
-func (p *Paragraph) AddVersion(span Span) {
+func (p *Paragraph) AddVersion() {
 	vs := new(Span)
+	vs.Type = idTypes.SID
 	vs.Class = "versiondesignation"
-	vs.AddTopicKey(idTypes.SID, "properties/version.designation")
+	vs.TopicKey = "properties/version.designation"
 	p.Version = *vs
-}
-type Cell struct {
-	Paragraph Paragraph
-}
-type Row struct {
-	Class string
-	Cells []Cell
-	Version string
-}
-func (r *Row) AddCell(cell Cell) {
-	r.Cells = append(r.Cells,cell)
 }

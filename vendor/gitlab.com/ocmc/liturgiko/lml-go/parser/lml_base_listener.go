@@ -63,6 +63,12 @@ func (s *BaseLMLListener) EnterPara(ctx *ParaContext) {}
 // ExitPara is called when production para is exited.
 func (s *BaseLMLListener) ExitPara(ctx *ParaContext) {}
 
+// EnterPspan is called when production pspan is entered.
+func (s *BaseLMLListener) EnterPspan(ctx *PspanContext) {}
+
+// ExitPspan is called when production pspan is exited.
+func (s *BaseLMLListener) ExitPspan(ctx *PspanContext) {}
+
 // EnterSpan is called when production span is entered.
 func (s *BaseLMLListener) EnterSpan(ctx *SpanContext) {}
 

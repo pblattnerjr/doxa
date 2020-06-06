@@ -36,6 +36,10 @@ func (v *BaseLMLVisitor) VisitPara(ctx *ParaContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseLMLVisitor) VisitPspan(ctx *PspanContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseLMLVisitor) VisitSpan(ctx *SpanContext) interface{} {
 	return v.VisitChildren(ctx)
 }

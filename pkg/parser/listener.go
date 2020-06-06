@@ -4,6 +4,7 @@ import (
 	SQL "database/sql"
 	"fmt"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/emirpasic/gods/stacks/arraystack"
 	"github.com/liturgiko/doxa/pkg/db/ltx2sql"
 	"github.com/liturgiko/doxa/pkg/enums/calendarTypes"
 	"github.com/liturgiko/doxa/pkg/enums/idTypes"
@@ -18,7 +19,7 @@ import (
 
 type LMLListener struct {
 	lml.BaseLMLListener
-	ALT template.ALT
+	ALT template.ATEM
 	LtxMapper ltx2sql.LtxMapper
 	// Emitters []Channel
 }
@@ -109,23 +110,53 @@ func (l *LMLListener) ExitInsert(ctx *lml.InsertContext) {
 }
 
 // EnterPara is called when production para is entered.
+/*
+para: PARA_STYLE ( nid | rid | sid | span )+ INSERT_VER?;
+span: SPAN_STYLE ( nid | rid | sid | span )+;
+ */
 func (l *LMLListener) EnterPara(ctx *lml.ParaContext) {
-	var insertVersion = ctx.INSERT_VER() != nil
-	fmt.Print(insertVersion)
+	paragraph = new(template.Paragraph)
+	paragraph.Class = ctx.PARA_STYLE().GetText()
+	if ctx.INSERT_VER() != nil {
+		paragraph.AddVersion()
+	}
+	span = nil
 }
 
 // ExitPara is called when production para is exited.
 func (l *LMLListener) ExitPara(ctx *lml.ParaContext) {
+	if span != nil {
+		paragraph.AddSpan(*span)
+	}
+	l.ALT.AddParagraph(*paragraph)
+	span = nil
 	fmt.Print("")
 }
 
 // EnterSpan is called when production span is entered.
+/*
+para: PARA_STYLE ( nid | rid | sid | span )+ INSERT_VER?;
+span: SPAN_STYLE ( nid | rid | sid | span )+;
+Ideas:
+- Maybe we need a span stack.
+	If the global span is nil, create one.
+	Else push the current span onto the stack.
+	For ExitPara, pop the stack (which should have len == 1) and add
+	the span to the para.
+ */
 func (l *LMLListener) EnterSpan(ctx *lml.SpanContext) {
+	span = new(template.Span)
+	span.Class = ctx.SPAN_STYLE().GetText()
 	fmt.Print("")
 }
-
 // ExitSpan is called when production span is exited.
 func (l *LMLListener) ExitSpan(ctx *lml.SpanContext) {
+	if pspan != nil {
+		pspan.AddChildSpan(*span)
+	} else {
+		paragraph.AddSpan(*span)
+	}
+	span = nil
 	fmt.Print("")
 }
 
@@ -141,12 +172,75 @@ func (l *LMLListener) ExitMedia(ctx *lml.MediaContext) {
 
 // EnterNid is called when production nid is entered.
 func (l *LMLListener) EnterNid(ctx *lml.NidContext) {
+	if ctx.STRING() == nil {
+		ctx.GetParser().NotifyErrorListeners("nid value cannot be empty",ctx.GetStart(),nil)
+	} else {
+		if value, err := strconv.Unquote(ctx.STRING().GetText()); err == nil  {
+			nid := template.NewNid(value)
+			if span == nil {
+				if pspan == nil {
+					paragraph.AddSpan(*nid)
+				} else {
+					pspan.AddChildSpan(*nid)
+				}
+			} else {
+				span.AddChildSpan(*nid)
+			}
+			//if pspan == nil {
+			//	if span == nil {
+			//		paragraph.AddSpan(*nid)
+			//	} else {
+			//		span.AddChildSpan(*nid)
+			//	}
+			//} else {
+			//	if span == nil  {
+			//		pspan.AddChildSpan(*nid)
+			//	} else {
+			//		span.AddChildSpan(*nid)
+			//	}
+			//}
+		} else {
+			ctx.GetParser().NotifyErrorListeners(fmt.Sprintf("%v",err),ctx.GetStart(),nil)
+		}
+	}
 	fmt.Print("")
 }
 
 // ExitNid is called when production nid is exited.
 func (l *LMLListener) ExitNid(ctx *lml.NidContext) {
 	fmt.Print("")
+}
+
+/**
+Enter 3
+ */
+// EnterPspan is called when production pspan is entered.
+func (l *LMLListener) EnterPspan(ctx *lml.PspanContext) {
+	if span != nil {
+		spans.Push(span)
+	}
+	if pspan != nil {
+		pspans.Push(pspan)
+	}
+	pspan = new(template.Span)
+}
+// ExitPspan is called when production pspan is exited.
+func (l *LMLListener) ExitPspan(ctx *lml.PspanContext) {
+	if item, ok := spans.Pop(); ok {
+		popped := item.(*template.Span)
+		for _, s := range pspan.ChildSpans {
+			popped.AddChildSpan(s)
+		}
+		span = popped
+	}
+	if pspans.Empty() {
+		pspan = nil
+	} else {
+		if item, ok := pspans.Pop(); ok {
+			popped := item.(*template.Span)
+			pspan = popped
+		}
+	}
 }
 
 // EnterPosition is called when production position is entered.
@@ -183,7 +277,7 @@ func (l *LMLListener) ExitPosition(ctx *lml.PositionContext) {
 	buildingCenter = false
 	buildingRight = false
 }
-func AddDirective(d template.PDFDirective) {
+func AddDirective(d template.PDFDecorator) {
 	if buildingLeft {
 		if buildingHeader {
 			pageHeader.AddLeftDirective(d)
@@ -210,10 +304,10 @@ func AddDirective(d template.PDFDirective) {
 func (l *LMLListener) EnterDirective(ctx *lml.DirectiveContext) {
 	if ctx.INSERT_DATE() != nil {
 		dir := template.NewDateDirective("span.date", l.ALT.LDP.TheDay)
-		AddDirective(*dir)
+		AddDirective(dir)
 	}
 	if ctx.INSERT_PAGE_NUMBER() != nil {
-		AddDirective(*template.NewPageNbrDirective("span.pageNbr"))
+		AddDirective(template.NewPageNbrDirective("span.pageNbr"))
 	}
 }
 
@@ -239,20 +333,20 @@ func (l *LMLListener) EnterLookup(ctx *lml.LookupContext) {
 func (l *LMLListener) ExitLookup(ctx *lml.LookupContext) {
 	if buildingFooter {
 		if buildingLeft {
-			pageFooter.AddLeftDirective(*lookupDirective)
+			pageFooter.AddLeftDirective(lookupDirective)
 		} else if buildingCenter {
-			pageFooter.AddCenterDirective(*lookupDirective)
+			pageFooter.AddCenterDirective(lookupDirective)
 		} else {
-			pageFooter.AddRightDirective(*lookupDirective)
+			pageFooter.AddRightDirective(lookupDirective)
 		}
 	}
 	if buildingHeader {
 		if buildingLeft {
-			pageHeader.AddLeftDirective(*lookupDirective)
+			pageHeader.AddLeftDirective(lookupDirective)
 		} else if buildingCenter {
-			pageHeader.AddCenterDirective(*lookupDirective)
+			pageHeader.AddCenterDirective(lookupDirective)
 		} else {
-			pageHeader.AddRightDirective(*lookupDirective)
+			pageHeader.AddRightDirective(lookupDirective)
 		}
 	}
 	buildingLookup = false
@@ -309,6 +403,30 @@ func (l *LMLListener) EnterRid(ctx *lml.RidContext) {
 		}
 		if buildingLookup {
 			lookupDirective.AddLookupTK(idTypes.RID, "", id)
+		} else {
+			rid := template.NewRid(id, modeOverride, dayOverride)
+			if span == nil {
+				if pspan == nil {
+					paragraph.AddSpan(*rid)
+				} else {
+					pspan.AddChildSpan(*rid)
+				}
+			} else {
+				span.AddChildSpan(*rid)
+			}
+			//if pspan == nil {
+			//	if span == nil {
+			//		paragraph.AddSpan(*rid)
+			//	} else {
+			//		span.AddChildSpan(*rid)
+			//	}
+			//} else {
+			//	if span == nil  {
+			//		pspan.AddChildSpan(*rid)
+			//	} else {
+			//		span.AddChildSpan(*rid)
+			//	}
+			//}
 		}
 	}
 }
@@ -338,6 +456,31 @@ func (l *LMLListener) EnterSid(ctx *lml.SidContext) {
 		}
 		if buildingLookup {
 			lookupDirective.AddLookupTK(idTypes.SID, "", id)
+		} else {
+			sid := template.NewSid(id)
+			if span == nil {
+				if pspan == nil {
+					paragraph.AddSpan(*sid)
+				} else {
+					pspan.AddChildSpan(*sid)
+				}
+			} else {
+				span.AddChildSpan(*sid)
+			}
+			//if pspan == nil {
+			//	if span == nil {
+			//		paragraph.AddSpan(*sid)
+			//	} else {
+			//		span.AddChildSpan(*sid)
+			//	}
+			//} else {
+			//	if span == nil  {
+			//		pspan.AddChildSpan(*sid)
+			//	} else {
+			//		span.AddChildSpan(*sid)
+			//	}
+			//}
+			fmt.Print("")
 		}
 	}
 }
@@ -715,5 +858,10 @@ func (l *LMLListener) ExitExpression(ctx *lml.ExpressionContext) {
 
 var pageHeader *template.Header
 var pageFooter *template.Footer
-var lookupDirective *template.PDFDirective
+var lookupDirective *template.PDFLookupDirective
+var paragraph *template.Paragraph
+var span *template.Span
+var pspan *template.Span
+var spans = arraystack.New()
+var pspans = arraystack.New()
 var buildingHeader, buildingFooter, buildingLeft, buildingCenter, buildingRight, buildingLookup bool

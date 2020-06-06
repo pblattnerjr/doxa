@@ -21,7 +21,7 @@ require (
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.4.0 // indirect
 	github.com/xanzy/go-gitlab v0.20.1
-	gitlab.com/ocmc/liturgiko/lml-go v0.0.31
+	gitlab.com/ocmc/liturgiko/lml-go v0.0.34
 	golang.org/x/crypto v0.0.0-20190829043050-9756ffdc2472
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/text v0.3.2

@@ -45,10 +45,36 @@ PageHeader = center @Lookup sid "template.titles/ve.pdf.header" rid "da/daVE.OnT
 PageFooter = left @PageNbr right @Date // You can use one or more of left, center, and right.
 SetPageNumber = 1 
 {
-  p.actor sid "actors/Priest"
-  p.dialog sid "eu.lichrysbasil/euLI.Key0109.text"
-  p.dialog span.it sid "prayers/res04p"
-  p.hymn rid "oc.*/ocVE.ApolTheotokionVM.text" @Mode 1 @Day 1 @Ver
+// 1a
+//p.actor sid "actors/Priest"
+// 1b
+//p.actor sid "actors/Priest" sid "rubrical/InALowVoice"
+// 2a
+//p.dialog span.it sid "prayers/res04p"
+// 2b
+//p.dialog span.it sid "prayers/res04p" span.rubric sid "rubrical/Thrice"
+// 3
+//p.actor span.rditbd sid "actors/Deacon" (span.rubric sid "rubrical/InALowVoice") span.bk nid "But, loud enough to be heard."
+// 4
+//p.actor sid "actors/Deacon" (span.rubric sid "rubrical/InALowVoice") span.bk nid "But, loud enough to be heard."
+// 5
+//p.actor sid "actors/Deacon" (span.rubric sid "rubrical/InALowVoice") nid "But, loud enough to be heard."
+// 6
+//p.actor sid "actors/Deacon" (span.rubric sid "rubrical/InALowVoice" span.rubric sid "rubrical/Thrice") nid "But, loud enough to be heard."
+// 7
+//p.actor span.it sid "actors/Deacon" (span.rubric sid "rubrical/InALowVoice" span.rubric sid "rubrical/Thrice") nid "But, loud enough to be heard."
+// 8
+//p.actor span.it sid "actors/Deacon" (span.rubric sid "rubrical/InALowVoice"  sid "rubrical/Thrice") nid "But, loud enough to be heard."
+// 9
+p.actor span.it sid "actors/Deacon" (span.rubric sid "rubrical/InALowVoice" ( span.bl sid "rubrical/Thrice" ) ) nid "But, loud enough to be heard."
+
+
+ // p.actor sid "actors/Priest"
+  //p.dialog sid "eu.lichrysbasil/euLI.Key0109.text"
+ // p.dialog span.it sid "prayers/res04p"
+  //p.hymn rid "oc.*/ocVE.ApolTheotokionVM.text" @Mode 1 @Day 1 @Ver // @Mode and @Day override the mode and day for the service date.
+  //p.actor span.rditbd sid "actors/Deacon" span.rubric sid "rubrical/InALowVoice" span.bk nid "But, loud enough to be heard."
+  // p.actor span.rditbd sid "actors/Deacon" (span.rubric sid "rubrical/InALowVoice") span.bk nid "But, loud enough to be heard."
 }`
 	lml, err := NewLMLParser("a/b",input, dbPath)
 	if err != nil {
