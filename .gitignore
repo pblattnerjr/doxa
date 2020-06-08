@@ -9,3 +9,5 @@
 cmd/doxago/doxago.exe
 pkg/utils/ares/test/out/
 pkg/utils/ares/ares.test.exe
+pkg/ages/ares/test/out/root/
+cmd/doxa/doxa.exe

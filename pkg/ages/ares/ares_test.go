@@ -279,12 +279,6 @@ func TestCleanAres(t *testing.T) {
 	}
 	OutBase = out
 
-	if strings.ContainsAny(*outArg, ":/\\") { // full path
-		out = *outArg
-	} else {
-		out = filepath.Join(dir, "out", *outArg)
-	}
-
 	files, err := ltfile.FileMatcher(InBase, "ares", nil)
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -295,8 +289,8 @@ func TestCleanAres(t *testing.T) {
 
 	var walkErr error
 	for _, file := range files {
-		fileOut := filepath.Join(OutBase, filepath.Base(file))
-		walkErr = CleanAres(file, fileOut, *suppressComments) // processing a file, nor a directory
+		fileOut := strings.Replace(file, InBase, OutBase,1)
+		walkErr = CleanAres(file, fileOut, *suppressComments)
 		if walkErr != nil {
 			allErrors = append(allErrors, walkErr)
 		} else {
