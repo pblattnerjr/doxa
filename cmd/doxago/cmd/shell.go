@@ -6,7 +6,7 @@ import (
 	SQL "database/sql"
 	"encoding/json"
 	"fmt"
-	prompt "github.com/c-bata/go-prompt"
+	"github.com/c-bata/go-prompt"
 	"github.com/liturgiko/doxa/pkg/concord"
 	"github.com/liturgiko/doxa/pkg/db/ltx2sql"
 	"github.com/liturgiko/doxa/pkg/models"
@@ -20,7 +20,7 @@ import (
 	"strings"
 )
 
-// the Shell command provides a user-friendly means search liturgical texts and create of update values
+// the Shell command provides a user-friendly means to search liturgical texts and create or update values
 var shellCmd = &cobra.Command{
 	Use:   "shell",
 	Short: "provide a shell for accessing the liturgical database",
@@ -132,7 +132,7 @@ func (c *Context) Depth() int {
 	}
 }
 
-// Based on the depth of the path, provides a LIKE clause for sql select where like
+// Based on the depth of the path, provides a sql SELECT WHERE LIKE clause
 func (c *Context) Like() string {
 	like := ""
 	switch c.Depth() {
@@ -164,7 +164,7 @@ func (c *Context) GetPath() string {
 	return context.Library
 }
 
-// The map help by this type provides occurrence numbers
+// The map held by this type provides occurrence numbers
 // as aliases for IDs to make it easy for the user to cd to a path.
 type IDMap struct {
 	Map map[int]models.Id
